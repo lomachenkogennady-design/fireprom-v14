@@ -1,0 +1,42 @@
+# Полный стек: портал + PostgreSQL.
+# Для VPS (dockerhosting.ru, любой Ubuntu-сервер) и локальной проверки образа.
+#
+#   docker compose up -d --build
+#   docker compose logs -f app
+#
+# Портал: http://localhost:3000 · здоровье: http://localhost:3000/api/health
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fireprom
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fireprom_change_me}
+      POSTGRES_DB: app_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fireprom -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Наружу не публикуем — доступ только из сети compose
+    expose:
+      - "5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://fireprom:${POSTGRES_PASSWORD:-fireprom_change_me}@db:5432/app_db
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

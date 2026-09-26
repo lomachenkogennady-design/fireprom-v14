@@ -1,0 +1,19 @@
+# Конфигурация Amvera Cloud.
+# Сборка идёт по Dockerfile из корня репозитория.
+#
+# Перед первым деплоем в разделе «Переменные» задайте:
+#   DATABASE_URL = postgres://<user>:<pass>@<имя-сервиса-БД>:5432/<db>
+# (строку выдаёт Amvera при создании Managed PostgreSQL)
+
+meta:
+  environment: docker
+  toolchain:
+    name: docker
+
+build:
+  dockerfile: Dockerfile
+
+run:
+  # Amvera проксирует внешний трафик на этот порт
+  containerPort: 3000
+  persistenceMount: /data
