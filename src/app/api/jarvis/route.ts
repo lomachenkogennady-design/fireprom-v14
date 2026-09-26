@@ -1,57 +1,21 @@
 import { NextResponse } from "next/server";
 import { askExpert, contextSummary } from "@/lib/jarvis/expert";
 import type { JarvisSnapshot, JarvisMessage } from "@/lib/jarvis/types";
+import { resolveProvider, type LlmProvider } from "@/lib/jarvis/llm";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * Двухслойный ответ:
  *  1. Инженерный движок — считает по фактическому состоянию калькулятора.
  *     Работает всегда, ключи не нужны, числа гарантированно верные.
  *  2. Языковая модель — свободные формулировки, получает те же цифры
- *     в системном промпте. Включается, если задан ключ в окружении.
+ *     в системном промпте.
+ *
+ * Провайдер определяется автоматически. Приоритет у локальной Ollama:
+ * она не требует ключа, не уходит в интернет и не стоит денег.
  */
-
-interface LlmProvider {
-  name: string;
-  baseUrl: string;
-  key: string;
-  model: string;
-}
-
-function resolveProvider(): LlmProvider | null {
-  const custom = process.env.LLM_BASE_URL;
-  const pick: [string, string | undefined, string, string][] = [
-    ["openai", process.env.OPENAI_API_KEY, "https://api.openai.com/v1", "gpt-4o-mini"],
-    ["openrouter", process.env.OPENROUTER_API_KEY, "https://openrouter.ai/api/v1", "openai/gpt-4o-mini"],
-    ["deepseek", process.env.DEEPSEEK_API_KEY, "https://api.deepseek.com/v1", "deepseek-chat"],
-    ["groq", process.env.GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"],
-  ];
-  for (const [name, key, baseUrl, model] of pick) {
-    if (key) {
-      return {
-        name,
-        key,
-        baseUrl: custom ?? baseUrl,
-        model: process.env.LLM_MODEL ?? model,
-      };
-    }
-  }
-
-  // ─── Локальная Ollama (Doogee) — OpenAI-совместимый endpoint /v1 ───
-  const ollamaUrl = process.env.OLLAMA_BASE_URL;
-  if (ollamaUrl) {
-    return {
-      name: "ollama",
-      key: "ollama", // Ollama игнорирует ключ, но fetch требует Bearer
-      baseUrl: `${ollamaUrl.replace(/\/$/, "")}/v1`,
-      model: process.env.OLLAMA_MODEL ?? "qwen3:4b-instruct",
-    };
-  }
-
-  return null;
-}
 
 const SYSTEM = `Ты — Jarvis, инженер-технолог листовой обработки металла компании ФАЙЕРПРОМ (Санкт-Петербург): лазерная резка, гибка на листогибочном прессе, порошковая покраска.
 
@@ -60,7 +24,16 @@ const SYSTEM = `Ты — Jarvis, инженер-технолог листово�
 - Используй ТОЛЬКО числа из контекста расчёта ниже. Никогда не выдумывай значения.
 - Если для ответа нужны данные, которых в контексте нет, честно скажи об этом.
 - Формулы приводи, когда они объясняют результат.
-- Не извиняйся и не расписывай, что ты ИИ.`;
+- Не извиняйся и не расписывай, что ты ИИ. Не показывай ход рассуждений.`;
+
+/** Рассуждающие модели (qwen3, deepseek-r1) оборачивают мысли в теги */
+function stripThinking(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/^[\s\S]*?<\/think>/i, "")
+    .trim();
+}
 
 async function callLlm(
   provider: LlmProvider,
@@ -68,23 +41,27 @@ async function callLlm(
   snapshot: JarvisSnapshot,
   history: JarvisMessage[]
 ): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (provider.key) headers.Authorization = `Bearer ${provider.key}`;
+
   const res = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${provider.key}`,
-    },
+    headers,
     body: JSON.stringify({
       model: provider.model,
       temperature: 0.3,
       max_tokens: 700,
+      stream: false,
       messages: [
-        { role: "system", content: `${SYSTEM}\n\n=== ТЕКУЩИЙ КОНТЕКСТ ===\n${contextSummary(snapshot)}` },
+        {
+          role: "system",
+          content: `${SYSTEM}\n\n=== ТЕКУЩИЙ КОНТЕКСТ ===\n${contextSummary(snapshot)}`,
+        },
         ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: question },
       ],
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(provider.timeoutMs),
   });
 
   if (!res.ok) {
@@ -95,12 +72,13 @@ async function callLlm(
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
   };
-  const answer = data.choices?.[0]?.message?.content?.trim();
+  const raw = data.choices?.[0]?.message?.content ?? "";
+  const answer = stripThinking(raw);
   if (!answer) throw new Error("Пустой ответ модели");
   return answer;
 }
 
-function fallbackAnswer(snapshot: JarvisSnapshot): string {
+function fallbackAnswer(snapshot: JarvisSnapshot, reason?: string): string {
   const base =
     snapshot.kind === "bending"
       ? `Я отвечаю по вашему расчёту «${snapshot.name}» (${snapshot.material}, s=${snapshot.thickness} мм, развёртка ${Math.round(snapshot.results.flatLength)} мм).`
@@ -109,14 +87,50 @@ function fallbackAnswer(snapshot: JarvisSnapshot): string {
         : `Откройте «Технологу» или «Менеджеру» — я подхвачу параметры с экрана.`;
 
   return [
-    `Не нашёл эту тему в инженерной базе, а языковая модель не подключена.`,
+    reason ?? `Не нашёл эту тему в инженерной базе, а языковая модель не подключена.`,
     ``,
     base,
     ``,
-    `Спросите иначе — например: «минимальная полка», «какое усилие», «проверь деталь», «длина развёртки», «сколько стоит», «порядок гибов», «чем заменить материал», «что в DXF».`,
+    `Спросите иначе — например: «минимальная полка», «какое усилие», «проверь деталь», «сколько листов», «сможем согнуть на нашем станке», «что прислать для заказа».`,
     ``,
-    `Чтобы включить свободные ответы, задайте в переменных окружения OPENAI_API_KEY (или OPENROUTER_API_KEY / DEEPSEEK_API_KEY / GROQ_API_KEY).`,
+    `Свободные ответы включаются переменной OLLAMA_URL (локальная модель) либо ключом OPENAI_API_KEY / OPENROUTER_API_KEY / DEEPSEEK_API_KEY / GROQ_API_KEY.`,
   ].join("\n");
+}
+
+/** Диагностика: какой провайдер подхватился и жив ли он */
+export async function GET() {
+  const p = resolveProvider();
+  if (!p) {
+    return NextResponse.json({
+      llm: false,
+      provider: null,
+      hint: "Задайте OLLAMA_URL (например http://192.168.10.21:11434) или ключ облачного провайдера.",
+    });
+  }
+
+  let reachable = false;
+  let detail = "";
+  try {
+    const headers: Record<string, string> = {};
+    if (p.key) headers.Authorization = `Bearer ${p.key}`;
+    const r = await fetch(`${p.baseUrl}/models`, {
+      headers,
+      signal: AbortSignal.timeout(6000),
+    });
+    reachable = r.ok;
+    if (!r.ok) detail = `HTTP ${r.status}`;
+  } catch (e) {
+    detail = e instanceof Error ? e.message : "нет связи";
+  }
+
+  return NextResponse.json({
+    llm: true,
+    provider: p.name,
+    model: p.model,
+    baseUrl: p.baseUrl,
+    reachable,
+    detail: detail || undefined,
+  });
 }
 
 export async function POST(req: Request) {
@@ -149,15 +163,27 @@ export async function POST(req: Request) {
     });
   }
 
-  // 2. Языковая модель — если есть ключ
+  // 2. Языковая модель
   const provider = resolveProvider();
   if (provider) {
     try {
       const answer = await callLlm(provider, question, snapshot, history);
-      return NextResponse.json({ answer, source: "llm", model: provider.model });
-    } catch (e) {
       return NextResponse.json({
-        answer: `Модель недоступна: ${e instanceof Error ? e.message : "ошибка сети"}.\n\n${fallbackAnswer(snapshot)}`,
+        answer,
+        source: "llm",
+        model: provider.model,
+        provider: provider.name,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "ошибка сети";
+      const timedOut = /timeout|abort/i.test(msg);
+      return NextResponse.json({
+        answer: fallbackAnswer(
+          snapshot,
+          timedOut
+            ? `Модель ${provider.model} не ответила за ${Math.round(provider.timeoutMs / 1000)} с — на слабом железе это бывает при первой загрузке в память. Повторите запрос.`
+            : `Модель недоступна: ${msg}`
+        ),
         source: "fallback",
       });
     }
