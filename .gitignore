@@ -21,3 +21,7 @@ Thumbs.db
 postgres.log
 *.bak
 src.bak_*
+*.bak
+*.bak2
+*.bak3
+*.bak*
