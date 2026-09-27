@@ -25,3 +25,4 @@ src.bak_*
 *.bak2
 *.bak3
 *.bak*
+.env.before-migration
