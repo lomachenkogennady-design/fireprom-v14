@@ -51,7 +51,7 @@ async function callLlm(
     headers,
     body: JSON.stringify({
       model: provider.model,
-      temperature: 0.25,
+      temperature: 0.3,
       max_tokens: 700,
       stream: false,
       messages: [
