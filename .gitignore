@@ -27,3 +27,5 @@ src.bak_*
 *.bak*
 .env.before-migration
 .next/standalone/
+tsconfig.tsbuildinfo
+next-env.d.ts
