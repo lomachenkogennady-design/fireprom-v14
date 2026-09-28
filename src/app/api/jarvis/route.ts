@@ -6,17 +6,6 @@ import { resolveProvider, type LlmProvider } from "@/lib/jarvis/llm";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-/**
- * Двухслойный ответ:
- *  1. Инженерный движок — считает по фактическому состоянию калькулятора.
- *     Работает всегда, ключи не нужны, числа гарантированно верные.
- *  2. Языковая модель — свободные формулировки, получает те же цифры
- *     в системном промпте.
- *
- * Провайдер определяется автоматически. Приоритет у локальной Ollama:
- * она не требует ключа, не уходит в интернет и не стоит денег.
- */
-
 const SYSTEM = `Ты — Jarvis, инженер-технолог листовой обработки металла компании ФАЙЕРПРОМ (Санкт-Петербург): лазерная резка, гибка на листогибочном прессе, порошковая покраска.
 
 ЖЁСТКИЕ ПРАВИЛА:
@@ -27,6 +16,43 @@ const SYSTEM = `Ты — Jarvis, инженер-технолог листово�
 - Если данных в контексте нет — честно скажи "В контексте расчёта этой величины нет" одной строкой.
 - Формулы приводи, только если объясняют ответ.
 - Ограничение: 3–5 предложений на ответ. Если нужно больше — структурируй списком по 1 строке.`;
+
+const VALID_MATERIALS = ["steel", "stainless", "aluminum"] as const;
+
+/**
+ * Валидация снапшота, приходящего с клиента.
+ *
+ * Раньше неполный context (например, {kind:"bending",material:"Ст3"} без
+ * results) приводил к чтению свойств undefined в expert.ts / contextSummary,
+ * что на WASM-сборке Next.js под ARM превращалось в Rust-панику и HTTP 500.
+ * Теперь неполный снапшот отбрасывается в idle до попадания в движок.
+ */
+function sanitizeSnapshot(raw: unknown): JarvisSnapshot {
+  if (!raw || typeof raw !== "object") return { kind: "idle", page: "/" };
+  const s = raw as Record<string, unknown>;
+  const page = typeof s.page === "string" ? s.page : "/";
+
+  if (s.kind === "bending") {
+    const materialOk = VALID_MATERIALS.includes(s.material as (typeof VALID_MATERIALS)[number]);
+    const hasResults = s.results && typeof s.results === "object";
+    const hasFlanges = Array.isArray(s.flanges);
+    const hasBends = Array.isArray(s.bends);
+    const hasHoles = Array.isArray(s.holes);
+    if (!materialOk || !hasResults || !hasFlanges || !hasBends || !hasHoles) {
+      return { kind: "idle", page };
+    }
+    return raw as JarvisSnapshot;
+  }
+
+  if (s.kind === "quote") {
+    if (!Array.isArray(s.items) || !s.totals || typeof s.totals !== "object") {
+      return { kind: "idle", page };
+    }
+    return raw as JarvisSnapshot;
+  }
+
+  return { kind: "idle", page };
+}
 
 /** Рассуждающие модели (qwen3, deepseek-r1) оборачивают мысли в теги */
 function stripThinking(text: string): string {
@@ -46,6 +72,15 @@ async function callLlm(
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (provider.key) headers.Authorization = `Bearer ${provider.key}`;
 
+  const summary = (() => {
+    try {
+      return contextSummary(snapshot);
+    } catch (e) {
+      console.error("[jarvis] contextSummary failed, falling back to empty:", e);
+      return "(контекст расчёта недоступен)";
+    }
+  })();
+
   const res = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
     headers,
@@ -57,7 +92,7 @@ async function callLlm(
       messages: [
         {
           role: "system",
-          content: `${SYSTEM}\n\n=== ТЕКУЩИЙ КОНТЕКСТ ===\n${contextSummary(snapshot)}`,
+          content: `${SYSTEM}\n\n=== ТЕКУЩИЙ КОНТЕКСТ ===\n${summary}`,
         },
         ...history.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: question },
@@ -81,12 +116,14 @@ async function callLlm(
 }
 
 function fallbackAnswer(snapshot: JarvisSnapshot, reason?: string): string {
-  const base =
-    snapshot.kind === "bending"
-      ? `Я отвечаю по вашему расчёту «${snapshot.name}» (${snapshot.material}, s=${snapshot.thickness} мм, развёртка ${Math.round(snapshot.results.flatLength)} мм).`
-      : snapshot.kind === "quote"
-        ? `Я вижу текущее КП: ${snapshot.items.length} позиций на ${Math.round(snapshot.totals.totalClient).toLocaleString("ru-RU")} ₽.`
-        : `Откройте «Технологу» или «Менеджеру» — я подхвачу параметры с экрана.`;
+  let base: string;
+  if (snapshot.kind === "bending" && snapshot.results) {
+    base = `Я отвечаю по вашему расчёту «${snapshot.name}» (${snapshot.material}, s=${snapshot.thickness} мм, развёртка ${Math.round(snapshot.results.flatLength)} мм).`;
+  } else if (snapshot.kind === "quote" && snapshot.totals) {
+    base = `Я вижу текущее КП: ${snapshot.items.length} позиций на ${Math.round(snapshot.totals.totalClient).toLocaleString("ru-RU")} ₽.`;
+  } else {
+    base = `Откройте «Технологу» или «Менеджеру» — я подхвачу параметры с экрана.`;
+  }
 
   return [
     reason ?? `Не нашёл эту тему в инженерной базе, а языковая модель не подключена.`,
@@ -138,7 +175,7 @@ export async function GET() {
 export async function POST(req: Request) {
   let body: {
     question?: string;
-    context?: JarvisSnapshot;
+    context?: unknown;
     history?: JarvisMessage[];
   };
   try {
@@ -152,11 +189,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Пустой вопрос" }, { status: 400 });
   }
 
-  const snapshot: JarvisSnapshot = body.context ?? { kind: "idle", page: "/" };
+  const snapshot = sanitizeSnapshot(body.context);
   const history = Array.isArray(body.history) ? body.history : [];
 
   // 1. Инженерный движок — числа только из расчёта
-  const expert = askExpert(question, snapshot);
+  let expert: { answer: string; intent: string; score: number } | null = null;
+  try {
+    expert = askExpert(question, snapshot);
+  } catch (e) {
+    console.error("[jarvis] askExpert failed:", e);
+    // не роняем роут — продолжим к LLM
+  }
+
   if (expert) {
     return NextResponse.json({
       answer: expert.answer,
