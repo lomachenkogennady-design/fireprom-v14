@@ -108,8 +108,36 @@ export function isThemeKey(v: unknown): v is ThemeKey {
  * Скрипт применяет тему до первой отрисовки — иначе на секунду мелькнёт
  * тёмный интерфейс поверх выбранной светлой темы.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
-  THEME_STORAGE_KEY
-)});var k=${JSON.stringify(THEME_KEYS)};document.documentElement.dataset.theme=k.indexOf(t)>-1?t:${JSON.stringify(
-  DEFAULT_THEME
-)};}catch(e){document.documentElement.dataset.theme=${JSON.stringify(DEFAULT_THEME)};}})();`;
+/** Привязка темы к модулю портала. Когда пользователь не выбрал
+ *  тему вручную — при переходе на /bending включается Синька,
+ *  на /kp — Калька, на /machine — Цех, на /ui — Терминал. */
+export const THEME_FOR_PATH: ReadonlyArray<readonly [string, ThemeKey]> = [
+  ["/bending", "blueprint"],
+  ["/cutting", "blueprint"],
+  ["/kp", "paper"],
+  ["/machine", "shopfloor"],
+  ["/ui", "terminal"],
+];
+
+export function themeForPath(path: string): ThemeKey {
+  for (const [prefix, key] of THEME_FOR_PATH) {
+    if (path === prefix || path.startsWith(prefix + "/")) return key;
+  }
+  return DEFAULT_THEME;
+}
+
+export const THEME_INIT_SCRIPT = `(function(){try{
+  var k=${JSON.stringify(THEME_KEYS)};
+  var d=${JSON.stringify(DEFAULT_THEME)};
+  var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
+  if(t==="auto"||k.indexOf(t)===-1){
+    var p=window.location.pathname;
+    var m=${JSON.stringify(THEME_FOR_PATH)};
+    t=d;
+    for(var i=0;i<m.length;i++){
+      var pre=m[i][0];
+      if(p===pre||p.indexOf(pre+"/")===0){t=m[i][1];break;}
+    }
+  }
+  document.documentElement.dataset.theme=t;
+}catch(e){document.documentElement.dataset.theme=${JSON.stringify(DEFAULT_THEME)};}})();`;

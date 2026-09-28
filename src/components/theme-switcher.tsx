@@ -8,7 +8,7 @@ import { THEMES, THEME_KEYS } from "@/lib/theme";
 import { clsx } from "@/lib/format";
 
 export function ThemeSwitcher() {
-  const { theme, setTheme, ready } = useTheme();
+  const { theme, setTheme, setThemeAuto, isAuto, ready } = useTheme();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +27,7 @@ export function ThemeSwitcher() {
   }, [open]);
 
   const current = THEMES[theme];
+  const label = !ready ? "…" : isAuto ? "Авто" : current.name;
 
   return (
     <div ref={boxRef} className="relative">
@@ -37,16 +38,46 @@ export function ThemeSwitcher() {
         aria-label="Сменить тему"
       >
         <Palette size={15} strokeWidth={1.8} />
-        <span className="hidden lg:inline">{ready ? current.name : "…"}</span>
+        <span className="hidden lg:inline">{label}</span>
       </button>
 
       {open && (
-        <div className="panel absolute right-0 top-[calc(100%+10px)] z-50 w-[300px] p-2">
+        <div className="panel absolute right-0 top-[calc(100%+10px)] z-50 w-[320px] p-2">
           <p className="micro px-2 py-2">Оформление</p>
+
+          <button
+            onClick={() => {
+              setThemeAuto();
+              setOpen(false);
+            }}
+            className={clsx(
+              "flex w-full items-center gap-3 border px-2 py-2 text-left transition-colors",
+              isAuto
+                ? "border-accent/50 bg-accent/10"
+                : "border-transparent hover:bg-ink/5",
+            )}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-dashed border-line">
+              <span className="font-mono text-[11px] font-bold text-steel">
+                A
+              </span>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] text-ink">
+                Автоматически
+              </span>
+              <span className="micro block truncate">
+                По модулю (чертёж · КП · цех)
+              </span>
+            </span>
+            {isAuto && <Check size={14} className="shrink-0 text-accent" />}
+          </button>
+
+          <div className="my-1 border-t border-line" />
 
           {THEME_KEYS.map((k) => {
             const t = THEMES[k];
-            const active = k === theme;
+            const active = k === theme && !isAuto;
             return (
               <button
                 key={k}
@@ -58,20 +89,27 @@ export function ThemeSwitcher() {
                   "flex w-full items-center gap-3 border px-2 py-2 text-left transition-colors",
                   active
                     ? "border-accent/50 bg-accent/10"
-                    : "border-transparent hover:bg-ink/5"
+                    : "border-transparent hover:bg-ink/5",
                 )}
               >
-                {/* мини-палитра */}
                 <span
                   className="flex h-8 w-8 shrink-0 overflow-hidden border"
                   style={{ borderColor: t.swatch.line, background: t.swatch.bg }}
                 >
-                  <span className="h-full w-1/2" style={{ background: t.swatch.panel }} />
-                  <span className="h-full w-1/2" style={{ background: t.swatch.accent }} />
+                  <span
+                    className="h-full w-1/2"
+                    style={{ background: t.swatch.panel }}
+                  />
+                  <span
+                    className="h-full w-1/2"
+                    style={{ background: t.swatch.accent }}
+                  />
                 </span>
 
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] text-ink">{t.name}</span>
+                  <span className="block truncate text-[13px] text-ink">
+                    {t.name}
+                  </span>
                   <span className="micro block truncate">{t.tagline}</span>
                 </span>
 
