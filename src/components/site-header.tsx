@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   History,
   Cog,
+  Scissors,
 } from "lucide-react";
 import { clsx } from "@/lib/format";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -15,6 +16,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 const NAV = [
   { href: "/", label: "Панель", icon: LayoutGrid },
   { href: "/bending", label: "Технологу", icon: DraftingCompass },
+  { href: "/cutting", label: "Резка", icon: Scissors },
   { href: "/kp", label: "Менеджеру", icon: FileSpreadsheet },
   { href: "/history", label: "История", icon: History },
   { href: "/machine", label: "Станок", icon: Cog },

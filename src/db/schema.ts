@@ -86,3 +86,23 @@ export type NewClient = typeof clients.$inferInsert;
 export type BendingCalculation = typeof bendingCalculations.$inferSelect;
 export type Quote = typeof quotes.$inferSelect;
 export type QuoteItem = typeof quoteItems.$inferSelect;
+
+/** История расчётов резки (модуль «Резка металла») */
+export const cuttingCalculations = pgTable("cutting_calculations", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id, {
+    onDelete: "set null",
+  }),
+  name: text("name").notNull(),
+  material: text("material").notNull(),
+  thickness: real("thickness").notNull(),
+  /** laser | plasma | waterjet */
+  tech: text("tech").notNull().default("laser"),
+  /** { parts: CuttingPart[], stockParts?: StockPart[], allowRotate: boolean } */
+  payload: jsonb("payload").notNull(),
+  /** { sheetCount, utilization, sheets, pricing, barCount?, bars? } */
+  results: jsonb("results").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

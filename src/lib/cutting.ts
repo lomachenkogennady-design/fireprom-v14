@@ -1,0 +1,331 @@
+import { LASER } from "./shop";
+import { MATERIALS, type MaterialKey } from "./materials";
+import { cutRate, pierceRate, TECH, type TechKey } from "./pricing";
+
+/* ─────────────────── Типы ─────────────────── */
+
+export interface CuttingPart {
+  id: string;
+  title: string;
+  /** размер по X, мм */
+  width: number;
+  /** размер по Y, мм */
+  height: number;
+  qty: number;
+  /** запрет поворота (направление проката) */
+  allowRotate?: boolean;
+  /** периметр контура реза, мм. Пусто → считается по прямоугольнику */
+  cutLength?: number;
+  /** количество врезок. Пусто → 1 на деталь */
+  pierces?: number;
+}
+
+export interface PlacedPart extends CuttingPart {
+  x: number;
+  y: number;
+  rot: boolean;
+  w: number;
+  h: number;
+}
+
+export interface SheetLayout {
+  index: number;
+  placed: PlacedPart[];
+  usedArea: number;
+}
+
+export interface NestingResult {
+  sheets: SheetLayout[];
+  sheetCount: number;
+  utilization: number;
+  sheetW: number;
+  sheetH: number;
+  unplaced: CuttingPart[];
+}
+
+export interface StockPart {
+  id: string;
+  title: string;
+  length: number;
+  qty: number;
+}
+
+export interface StockPiece {
+  partId: string;
+  title: string;
+  length: number;
+  offset: number;
+}
+
+export interface StockBar {
+  index: number;
+  pieces: StockPiece[];
+  usedLength: number;
+  waste: number;
+}
+
+export interface StockResult {
+  bars: StockBar[];
+  barCount: number;
+  utilization: number;
+  stockLength: number;
+  totalWaste: number;
+}
+
+export interface CuttingPricing {
+  materialCost: number;
+  cutCost: number;
+  pierceCost: number;
+  total: number;
+  totalCutLength: number;
+  totalPierces: number;
+  totalMass: number;
+}
+
+/* ─────────────────── MaxRects для листов ─────────────────── */
+
+interface FreeRect { x: number; y: number; w: number; h: number; }
+interface Sheet { placed: PlacedPart[]; free: FreeRect[]; }
+
+function pruneFree(free: FreeRect[]): void {
+  for (let i = free.length - 1; i >= 0; i--) {
+    for (let j = 0; j < free.length; j++) {
+      if (i === j) continue;
+      const a = free[i], b = free[j];
+      if (a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h) {
+        free.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+function splitFreeAgainst(free: FreeRect[], placed: FreeRect): FreeRect[] {
+  const out: FreeRect[] = [];
+  for (const fr of free) {
+    if (
+      placed.x >= fr.x + fr.w || placed.x + placed.w <= fr.x ||
+      placed.y >= fr.y + fr.h || placed.y + placed.h <= fr.y
+    ) {
+      out.push(fr);
+      continue;
+    }
+    if (placed.y > fr.y) out.push({ x: fr.x, y: fr.y, w: fr.w, h: placed.y - fr.y });
+    if (placed.y + placed.h < fr.y + fr.h)
+      out.push({ x: fr.x, y: placed.y + placed.h, w: fr.w, h: (fr.y + fr.h) - (placed.y + placed.h) });
+    if (placed.x > fr.x) {
+      const y0 = Math.max(fr.y, placed.y);
+      const y1 = Math.min(fr.y + fr.h, placed.y + placed.h);
+      if (y1 > y0) out.push({ x: fr.x, y: y0, w: placed.x - fr.x, h: y1 - y0 });
+    }
+    if (placed.x + placed.w < fr.x + fr.w) {
+      const y0 = Math.max(fr.y, placed.y);
+      const y1 = Math.min(fr.y + fr.h, placed.y + placed.h);
+      if (y1 > y0) out.push({ x: placed.x + placed.w, y: y0, w: (fr.x + fr.w) - (placed.x + placed.w), h: y1 - y0 });
+    }
+  }
+  return out.filter((r) => r.w > 1e-3 && r.h > 1e-3);
+}
+
+type SortFn = (a: { part: CuttingPart }, b: { part: CuttingPart }) => number;
+type FitMode = "bssf" | "baf";
+
+function runOnce(
+  pieces: { part: CuttingPart }[],
+  innerW: number,
+  innerH: number,
+  margin: number,
+  gap: number,
+  sortFn: SortFn,
+  fitMode: FitMode,
+): { sheets: Sheet[]; sheetCount: number } {
+  const sorted = [...pieces].sort(sortFn);
+  const sheets: Sheet[] = [];
+
+  for (const { part } of sorted) {
+    let bestSheet = -1, bestRectIdx = -1, bestRot = false;
+    let bestScore1 = Infinity, bestScore2 = Infinity;
+
+    for (let si = 0; si < sheets.length; si++) {
+      const free = sheets[si].free;
+      for (let ri = 0; ri < free.length; ri++) {
+        const fr = free[ri];
+        const candidates: [number, number, boolean][] = [];
+        if (part.width <= fr.w && part.height <= fr.h) candidates.push([part.width, part.height, false]);
+        if (part.allowRotate !== false && part.height <= fr.w && part.width <= fr.h)
+          candidates.push([part.height, part.width, true]);
+
+        for (const [pw, ph, rot] of candidates) {
+          const lw = fr.w - pw, lh = fr.h - ph;
+          let s1: number, s2: number;
+          if (fitMode === "bssf") { s1 = Math.min(lw, lh); s2 = Math.max(lw, lh); }
+          else { s1 = lw * lh; s2 = Math.min(lw, lh); }
+          if (s1 < bestScore1 || (s1 === bestScore1 && s2 < bestScore2)) {
+            bestSheet = si; bestRectIdx = ri; bestRot = rot;
+            bestScore1 = s1; bestScore2 = s2;
+          }
+        }
+      }
+    }
+
+    if (bestSheet === -1) {
+      sheets.push({ placed: [], free: [{ x: margin, y: margin, w: innerW, h: innerH }] });
+      bestSheet = sheets.length - 1;
+      bestRectIdx = 0;
+      bestRot = !(part.width <= innerW && part.height <= innerH);
+    }
+
+    const sheet = sheets[bestSheet];
+    const fr = sheet.free[bestRectIdx];
+    const pw = bestRot ? part.height : part.width;
+    const ph = bestRot ? part.width : part.height;
+    const px = fr.x, py = fr.y;
+    sheet.placed.push({ ...part, x: px, y: py, rot: bestRot, w: pw, h: ph });
+    const reserved: FreeRect = { x: px, y: py, w: pw + gap, h: ph + gap };
+    sheet.free = splitFreeAgainst(sheet.free, reserved);
+    pruneFree(sheet.free);
+  }
+
+  return { sheets, sheetCount: sheets.length };
+}
+
+export function nestOnSheets(
+  parts: CuttingPart[],
+  sheetW: number = LASER.sheetW,
+  sheetH: number = LASER.sheetH,
+  thickness: number = 2,
+  margin: number = 5,
+): NestingResult {
+  const gap = Math.max(2, Math.ceil(thickness * 1.2));
+  const innerW = sheetW - margin * 2;
+  const innerH = sheetH - margin * 2;
+
+  const pieces: { part: CuttingPart }[] = [];
+  const unplaced: CuttingPart[] = [];
+
+  for (const p of parts) {
+    const fitsN = p.width <= innerW && p.height <= innerH;
+    const fitsR = p.height <= innerW && p.width <= innerH;
+    if (!fitsN && !fitsR) {
+      if (!unplaced.find((u) => u.id === p.id)) unplaced.push(p);
+      continue;
+    }
+    for (let i = 0; i < p.qty; i++) pieces.push({ part: p });
+  }
+
+  const strategies: { sort: SortFn; fit: FitMode; name: string }[] = [
+    { name: "area+bssf",   sort: (a, b) => b.part.width * b.part.height - a.part.width * a.part.height, fit: "bssf" },
+    { name: "area+baf",    sort: (a, b) => b.part.width * b.part.height - a.part.width * a.part.height, fit: "baf" },
+    { name: "height+bssf", sort: (a, b) => b.part.height - a.part.height || b.part.width - a.part.width, fit: "bssf" },
+    { name: "height+baf",  sort: (a, b) => b.part.height - a.part.height || b.part.width - a.part.width, fit: "baf" },
+    { name: "width+bssf",  sort: (a, b) => b.part.width - a.part.width || b.part.height - a.part.height, fit: "bssf" },
+    { name: "maxside+baf", sort: (a, b) => Math.max(b.part.width, b.part.height) - Math.max(a.part.width, a.part.height), fit: "baf" },
+  ];
+
+  let best: { sheets: Sheet[]; sheetCount: number; utilization: number } | null = null;
+
+  for (const s of strategies) {
+    const r = runOnce(pieces, innerW, innerH, margin, gap, s.sort, s.fit);
+    const usedArea = r.sheets.reduce((sum, sh) => sum + sh.placed.reduce((s2, p) => s2 + p.w * p.h, 0), 0);
+    const totalArea = r.sheetCount * sheetW * sheetH;
+    const util = totalArea > 0 ? usedArea / totalArea : 0;
+    if (!best || r.sheetCount < best.sheetCount || (r.sheetCount === best.sheetCount && util > best.utilization)) {
+      best = { sheets: r.sheets, sheetCount: r.sheetCount, utilization: util };
+    }
+  }
+
+  const resultSheets: SheetLayout[] = (best?.sheets ?? []).map((sh, i) => ({
+    index: i + 1,
+    placed: sh.placed,
+    usedArea: sh.placed.reduce((s, p) => s + p.w * p.h, 0),
+  }));
+
+  return {
+    sheets: resultSheets,
+    sheetCount: resultSheets.length,
+    utilization: best?.utilization ?? 0,
+    sheetW, sheetH, unplaced,
+  };
+}
+
+/* ─────────────────── First Fit Decreasing для хлыстов ─────────────────── */
+
+export function stockCutting(parts: StockPart[], stockLength = 6000): StockResult {
+  const pieces: { id: string; title: string; length: number }[] = [];
+  for (const p of parts) {
+    for (let i = 0; i < p.qty; i++) pieces.push({ id: p.id, title: p.title, length: p.length });
+  }
+  pieces.sort((a, b) => b.length - a.length);
+
+  const bars: StockBar[] = [];
+  for (const piece of pieces) {
+    if (piece.length > stockLength) continue;
+    let placed = false;
+    for (const bar of bars) {
+      if (bar.usedLength + piece.length <= stockLength) {
+        bar.pieces.push({ partId: piece.id, title: piece.title, length: piece.length, offset: bar.usedLength });
+        bar.usedLength += piece.length;
+        bar.waste = stockLength - bar.usedLength;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      bars.push({
+        index: bars.length + 1,
+        pieces: [{ partId: piece.id, title: piece.title, length: piece.length, offset: 0 }],
+        usedLength: piece.length,
+        waste: stockLength - piece.length,
+      });
+    }
+  }
+
+  const totalUsed = bars.reduce((s, b) => s + b.usedLength, 0);
+  const totalWaste = bars.reduce((s, b) => s + b.waste, 0);
+  return {
+    bars, barCount: bars.length,
+    utilization: bars.length > 0 ? totalUsed / (bars.length * stockLength) : 0,
+    stockLength, totalWaste,
+  };
+}
+
+/* ─────────────────── Расчёт цены ─────────────────── */
+
+export function calculateCuttingPrice(
+  parts: CuttingPart[],
+  material: MaterialKey,
+  thickness: number,
+  tech: TechKey = "laser",
+): CuttingPricing {
+  const rate = cutRate(material, thickness, tech);
+  const pierceRateVal = pierceRate(material, tech);
+
+  let totalCutLength = 0;
+  let totalPierces = 0;
+  let totalMass = 0;
+  const density = MATERIALS[material].density;
+
+  for (const p of parts) {
+    const perimeter = p.cutLength ?? 2 * (p.width + p.height);
+    totalCutLength += perimeter * p.qty;
+    totalPierces += (p.pierces ?? 1) * p.qty;
+    const areaM2 = (p.width / 1000) * (p.height / 1000);
+    const volM3 = areaM2 * (thickness / 1000);
+    totalMass += volM3 * density * p.qty;
+  }
+
+  const cutMeters = totalCutLength / 1000;
+  const cutCost = cutMeters * rate;
+  const pierceCost = totalPierces * pierceRateVal;
+  const materialCost = totalMass * MATERIALS[material].pricePerKg * 1.15;
+
+  return {
+    materialCost, cutCost, pierceCost,
+    total: materialCost + cutCost + pierceCost,
+    totalCutLength, totalPierces, totalMass,
+  };
+}
+
+export function techLabel(tech: TechKey): string {
+  return TECH[tech].label;
+}

@@ -10,6 +10,7 @@ import {
   Shapes,
   Scan,
   Factory,
+  Scissors,
 } from "lucide-react";
 import { db } from "@/db";
 import { bendingCalculations, quotes, clients } from "@/db/schema";
@@ -189,7 +190,7 @@ export default async function Dashboard() {
       </section>
 
       {/* ---------- MODULES ---------- */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-3">
         <Link
           href="/bending"
           className="panel corner group relative overflow-hidden p-7 transition-colors hover:border-accent/50"
@@ -214,6 +215,33 @@ export default async function Dashboard() {
           </p>
           <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
             Открыть калькулятор <ArrowRight size={11} className="inline" />
+          </p>
+        </Link>
+
+        <Link
+          href="/cutting"
+          className="panel corner group relative overflow-hidden p-7 transition-colors hover:border-accent/50"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex h-11 w-11 items-center justify-center border border-line bg-panel2">
+              <Scissors size={20} className="text-accent" strokeWidth={1.6} />
+            </div>
+            <ArrowUpRight
+              size={18}
+              className="text-steel transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
+            />
+          </div>
+          <p className="micro mt-6">Модуль · резке</p>
+          <h2 className="mt-2 font-display text-xl font-semibold">
+            Резка металла
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-steel">
+            Раскрой листов 2500×1250 через MaxRects (6 стратегий, BSSF/BAF)
+            и хлыстов 6 м через First Fit Decreasing. Тепловой зазор, поворот
+            деталей, длина реза, врезки, цена по тарифам лазера.
+          </p>
+          <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
+            Открыть раскрой <ArrowRight size={11} className="inline" />
           </p>
         </Link>
 
