@@ -26,3 +26,4 @@ src.bak_*
 *.bak3
 *.bak*
 .env.before-migration
+.next/standalone/
