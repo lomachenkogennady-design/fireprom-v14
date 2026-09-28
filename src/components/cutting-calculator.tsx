@@ -1,4 +1,5 @@
 "use client";
+import CuttingDxfImport from "./cutting-dxf-import";
 
 import { useMemo, useState } from "react";
 import CuttingNestingView from "./cutting-nesting-view";
@@ -136,15 +137,18 @@ export default function CuttingCalculator() {
       {sub === "sheets" ? (
         <>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-500">Детали</h3>
-              <button
-                type="button"
-                onClick={addSheetPart}
-                className="rounded-lg bg-amber-500 px-3 py-1.5 text-[12px] font-bold text-white hover:bg-amber-600"
-              >
-                + Добавить
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <CuttingDxfImport onImport={(parts) => setSheetParts((prev) => [...prev, ...parts])} />
+                <button
+                  type="button"
+                  onClick={addSheetPart}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-[12px] font-bold text-white hover:bg-amber-600"
+                >
+                  + Вручную
+                </button>
+              </div>
             </div>
             {sheetParts.length === 0 && (
               <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-[12px] text-slate-500">
