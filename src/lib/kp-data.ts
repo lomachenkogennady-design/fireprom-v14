@@ -63,6 +63,19 @@ export async function loadKpData(id: number): Promise<KpData | null> {
     price: it.unitPrice,
   }));
 
+  // Контроль: рендер должен сойтись с сохранённым total.
+  // Порог 1 руб — в quote-builder округление до целого.
+  const grossSum = kpItems.reduce((s, i) => s + i.qty * i.price, 0);
+  const discountPct = quote.discountPct ?? 0;
+  const vatRate = quote.vatPct || 22;
+  const computed =
+    ((grossSum * (100 - discountPct)) / 100) * (1 + vatRate / 100);
+  if (quote.total != null && Math.abs(computed - Number(quote.total)) > 1) {
+    console.warn(
+      `[kp-data] КП ${id}: PDF ${computed.toFixed(2)} ≠ total ${quote.total}`,
+    );
+  }
+
   return {
     number: quote.number,
     date: fmtDate(quote.createdAt),
@@ -74,8 +87,9 @@ export async function loadKpData(id: number): Promise<KpData | null> {
     },
     customer,
     items: kpItems,
+    discountPct,
     // vatPct хранится в БД как real (0 = ещё не задан) — тогда дефолт 22
-    vatRate: quote.vatPct || 22,
+    vatRate,
     note: quote.comment ?? undefined,
     manager: COMPANY.signatory.short,
   };

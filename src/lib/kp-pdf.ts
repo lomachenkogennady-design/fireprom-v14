@@ -32,7 +32,9 @@ export interface KpData {
   company: { name: string; inn?: string; phone?: string; email?: string };
   customer: string;
   items: KpItem[];
-  /** НДС, % (по умолчанию 20) */
+  /** Скидка, % (по умолчанию 0). База для НДС = сумма позиций минус скидка */
+  discountPct?: number;
+  /** НДС, % (по умолчанию 22) */
   vatRate?: number;
   note?: string;
   manager?: string;
@@ -200,7 +202,12 @@ export function renderKpPdf(kp: KpData): Promise<Buffer> {
   });
 
   // ── Итоги ──
-  const subtotal = kp.items.reduce((s, it) => s + it.qty * it.price, 0);
+  // В БД quotes.subtotal — уже со скидкой. Считаем сами из позиций,
+  // чтобы PDF был согласован с сохранёнными значениями.
+  const grossSum = kp.items.reduce((s, it) => s + it.qty * it.price, 0);
+  const discountPct = kp.discountPct ?? 0;
+  const discount = (grossSum * discountPct) / 100;
+  const subtotal = grossSum - discount;
   const vatRate = kp.vatRate ?? 22;
   const vat = (subtotal * vatRate) / 100;
   const total = subtotal + vat;
@@ -221,7 +228,14 @@ export function renderKpPdf(kp: KpData): Promise<Buffer> {
     doc.text(value, totalsX + totalsW - 85, y, { width: 85, align: "right" });
     y += isBold ? 20 : 16;
   };
-  totalRow("Итого без НДС:", money(subtotal));
+  if (discountPct > 0) {
+    totalRow("Сумма позиций:", money(grossSum));
+    totalRow(`Скидка ${discountPct}%:`, "− " + money(discount));
+    totalRow("Со скидкой:", money(subtotal));
+    y += 4;
+  } else {
+    totalRow("Итого без НДС:", money(subtotal));
+  }
   totalRow(`НДС ${vatRate}%:`, money(vat));
   totalRow("Итого с НДС:", money(total), true);
 
