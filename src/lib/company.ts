@@ -62,6 +62,28 @@ export const COMPANY = {
     genitive: "Первухина Дмитрия Александровича",
   },
 
+  /** Отдел продаж — контакты менеджера */
+  sales: {
+    manager: {
+      name: "Геннадий Олегович",
+      position: "Руководитель отдела продаж",
+      phone1: "+7 (921) 863-56-50",
+      phone1Link: "+79218635650",
+      phone2: "+7 (931) 599-05-16",
+      phone2Link: "+79315990516",
+      email: "san@fire-prom.ru",
+      telegram: "https://t.me/fireprom_spb",
+      max: "https://max.ru/u/fireprom_spb",
+    },
+    /** Производственный адрес (отличается от юридического) */
+    production: {
+      address: "г. Санкт-Петербург, 5-й Верхний пер., 19Д",
+      city: "Санкт-Петербург",
+    },
+    site: "www.fire-prom.ru",
+    siteUrl: "https://fire-prom.ru",
+  },
+
   /** Основная деятельность */
   activity: {
     description: "Металлообработка, металлоконструкции, двери, витражи",

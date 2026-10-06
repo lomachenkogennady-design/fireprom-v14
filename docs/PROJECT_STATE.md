@@ -158,3 +158,65 @@ API:
   6 коммитов: 95a795f → 9eeb57c
   +1300 строк: MES, Jarvis MES, тесты, navbar
   Amvera: аккаунт, 111 ₽ — но деплой не сделан
+
+---
+
+## 21. Обновление от 06.10.2026 (вечер) — приём заявок
+
+### Telegram-бот @Fireprombot
+
+Расположение: ~/fireprom-intake/ (Samsung), процесс bot.py (Python 3.14 + python-telegram-bot 22.8).
+
+Транспорт: SOCKS5 через Orbot (127.0.0.1:9050) — на Samsung Telegram работает
+только через прокси. Termux видит SOCKS5 (127.0.0.1:9050 открыт).
+
+Роли (по from.id):
+  • Менеджер (5529929467) — меню Заявки/Статус/Контакты/Помощь
+  • Клиент — пошаговый диалог /new
+
+Команды менеджера:
+  /start /help /leads /status /contacts
+
+Клиентский диалог (4 шага + файлы):
+  1) Тип (11 reply-кнопок с эмодзи)
+  2) Имя
+  3) Телефон
+  4) Комментарий (/skip)
+  5+) Файлы (DXF/PDF/фото) → кнопка «✅ Отправить заявку»
+
+Маршрут:
+  Telegram → Orbot SOCKS5 → Samsung bot.py → LAN 192.168.10.21:3000
+    → /api/leads (POST multipart) → Postgres + uploads/
+
+### Модуль leads на Doogee
+
+Таблицы: leads, lead_items, lead_files (всего 15 в app_db).
+API: POST/GET /api/leads, автонумерация L-YYMMDD-NNN (дневной счётчик).
+Файлы: ~/fireprom-v14/uploads/{leadId}/, SHA-256 дедупликация.
+Роут: src/app/api/leads/route.ts.
+
+### Ловушка UPLOAD_ROOT в standalone
+
+process.cwd() = .next/standalone, uploads уезжал внутрь standalone и
+терялся при пересборке. Патч: UPLOAD_ROOT = (() => {...}) — 
+из .next/standalone поднимаемся на два уровня вверх к корню проекта.
+
+### Управление ботом (Samsung)
+
+Запуск:  ~/fireprom-intake/start.sh
+Останов: он же — убивает все процессы fireprom-intake и запускает один
+Лог:     ~/fireprom-intake/bot.log
+
+### Известные особенности
+
+  • reply-кнопки работают, inline (callback) — теряются через SOCKS5
+    → меню переделано на reply, нормализация текста через normalize()
+  • Конфликт getUpdates при двух запущенных bot.py с одним токеном
+    → start.sh убивает все старые перед запуском нового
+  • PTBUserWarning про per_message — некритичен, не используем ConversationHandler
+
+### Известные ограничения
+
+  • MAX Bot API — не проверен, добавление отложено
+  • IMAP san@fire-prom.ru — не проверен, добавление отложено
+  • Автозапуск через Termux:Boot — не настроен

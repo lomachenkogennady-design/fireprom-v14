@@ -29,3 +29,4 @@ src.bak_*
 .next/standalone/
 tsconfig.tsbuildinfo
 next-env.d.ts
+uploads/

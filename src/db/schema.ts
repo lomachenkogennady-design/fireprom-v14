@@ -140,3 +140,56 @@ export const machineEvents = pgTable("machine_events", {
 export type MachineTask   = typeof machineTasks.$inferSelect;
 export type NewMachineTask = typeof machineTasks.$inferInsert;
 export type MachineEvent  = typeof machineEvents.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════
+// Модуль «Заявки» (leads) — приём с сайта, Telegram, почты, MAX
+// ═══════════════════════════════════════════════════════════
+
+/** Заявки от клиентов — из формы /order, Telegram-бота, IMAP, ручного ввода */
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  source: text("source").notNull().default("site"),
+  name: text("name"),
+  phone: text("phone"),
+  email: text("email"),
+  contactMethod: text("contact_method"),
+  region: text("region"),
+  address: text("address"),
+  requestType: text("request_type"),
+  message: text("message"),
+  status: text("status").notNull().default("new"),
+  utmJson: jsonb("utm_json"),
+  referrer: text("referrer"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const leadItems = pgTable("lead_items", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .references(() => leads.id, { onDelete: "cascade" })
+    .notNull(),
+  kind: text("kind").notNull(),
+  paramsJson: jsonb("params_json"),
+  sketchSvg: text("sketch_svg"),
+  sortOrder: integer("sort_order").default(0),
+});
+
+export const leadFiles = pgTable("lead_files", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .references(() => leads.id, { onDelete: "cascade" })
+    .notNull(),
+  filename: text("filename").notNull(),
+  path: text("path").notNull(),
+  size: integer("size").notNull(),
+  mime: text("mime").notNull(),
+  sha256: text("sha256").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type Lead = typeof leads.$inferSelect;
+export type NewLead = typeof leads.$inferInsert;
+export type LeadItem = typeof leadItems.$inferSelect;
+export type LeadFile = typeof leadFiles.$inferSelect;
