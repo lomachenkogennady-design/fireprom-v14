@@ -94,3 +94,39 @@ Arena Design Lab (5):
   a4adfb6  docs: PROJECT_STATE.md + scripts/backup.sh
   d5c518f  feat(clients): GET + PATCH
   bd209f5  fix(jarvis): валидация снапшота
+
+---
+
+## 19. Обновление от 06.10.2026 — MES (коммит 95a795f)
+
+### Операторские экраны
+
+Роуты:
+  /laser /press /weld /paint /pack — экраны операторов (тема shopfloor)
+  /mes/queue                       — канбан мастера
+
+Компоненты:
+  src/lib/stations.ts              — STATIONS, StationSpec
+  src/components/StationShell.tsx  — общий shell оператора
+  src/app/mes/queue/page.tsx       — канбан 5 колонок
+
+API:
+  GET   /api/mes/tasks?station=X   — очередь станка
+  POST  /api/mes/tasks/:id/start   — старт
+  POST  /api/mes/tasks/:id/report  — { done, scrap, note }
+  PATCH /api/mes/tasks/:id         — { machineId, status, note }
+  GET   /api/mes/queue             — сводка
+
+БД (app_db, +2 таблицы):
+  machine_tasks   — производственные задания
+  machine_events  — аудит: start | +1 | scrap
+
+Ключевое:
+  • Инкремент sql`done + N` — два оператора не перетрут.
+  • Автозакрытие: done >= qty -> status=done + finished_at.
+  • meta jsonb — произвольные параметры станка.
+
+Подводные камни:
+  • drizzle-kit push требует TTY -> через SSH не работает.
+    Накат таблиц — прямым SQL через psql.
+  • next-env.d.ts был под git -> git rm --cached.
