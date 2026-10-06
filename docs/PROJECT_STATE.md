@@ -130,3 +130,31 @@ API:
   • drizzle-kit push требует TTY -> через SSH не работает.
     Накат таблиц — прямым SQL через psql.
   • next-env.d.ts был под git -> git rm --cached.
+
+---
+
+## 20. Обновление от 06.10.2026 (вечер) — navbar ЦЕХ + тесты
+
+### Кнопка ЦЕХ (коммит 9eeb57c)
+  site-header.tsx: NAV += { href: "/mes/queue", label: "Цех", icon: Factory }
+  Позиция между «История» и «Станок». < 640px — только иконка.
+
+### Автотесты MES (коммит fe72a44)
+  tests/mes.test.mjs — 27 тестов через node:test
+  Покрытие: Health, MES API, Jarvis MES, 6 страниц HTTP 200
+  Запуск: npm test (~23 сек)
+
+### Паттерн db.execute в pg
+  Драйвер возвращает { rows: [...] }, не массив.
+  mes.ts: const rows = (_r as unknown as { rows: T[] }).rows
+
+### NetBird — реальный статус
+  Samsung: клиент есть, toggle ВЫКЛЮЧЕН. В сети 0 пиров.
+  Doogee: netbird НЕ установлен.
+  Строчка «NetBird 100.96.47.95» в старом SESSION_START.md — устарела.
+  Решение (Wi-Fi / NetBird / Amvera) отложено.
+
+### Итог сессии
+  6 коммитов: 95a795f → 9eeb57c
+  +1300 строк: MES, Jarvis MES, тесты, navbar
+  Amvera: аккаунт, 111 ₽ — но деплой не сделан
