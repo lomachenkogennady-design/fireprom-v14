@@ -90,3 +90,48 @@ ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS tech text NOT NULL DEFAULT 'las
 CREATE INDEX IF NOT EXISTS idx_bending_created ON bending_calculations (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_quotes_created  ON quotes (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_quote_items_qid ON quote_items (quote_id);
+
+-- ═══════════════════════════════════════════════════════
+-- Модуль «Резка металла» (добавлено 06.10.2026)
+-- ═══════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS cutting_calculations (
+  id            serial PRIMARY KEY,
+  client_id     integer REFERENCES clients(id) ON DELETE SET NULL,
+  name          text NOT NULL,
+  material      text NOT NULL,
+  thickness     real NOT NULL,
+  tech          text NOT NULL DEFAULT 'laser',
+  payload       jsonb NOT NULL,
+  results       jsonb NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- ═══════════════════════════════════════════════════════
+-- Модуль MES: задания и аудит (добавлено 06.10.2026)
+-- ═══════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS machine_tasks (
+  id            serial PRIMARY KEY,
+  machine_id    text NOT NULL,
+  station       text NOT NULL,
+  quote_id      integer REFERENCES quotes(id) ON DELETE SET NULL,
+  part_name     text NOT NULL,
+  qty           integer NOT NULL,
+  done          integer NOT NULL DEFAULT 0,
+  scrap         integer NOT NULL DEFAULT 0,
+  status        text NOT NULL DEFAULT 'queued',
+  dxf_path      text,
+  note          text,
+  meta          jsonb,
+  operator_id   text,
+  started_at    timestamptz,
+  finished_at   timestamptz,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS machine_events (
+  id            serial PRIMARY KEY,
+  task_id       integer NOT NULL REFERENCES machine_tasks(id) ON DELETE CASCADE,
+  kind          text NOT NULL,
+  payload       jsonb,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
