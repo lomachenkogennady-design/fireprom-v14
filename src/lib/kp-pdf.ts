@@ -236,8 +236,42 @@ export function renderKpPdf(kp: KpData): Promise<Buffer> {
     doc.text(`Предложение действительно до ${kp.validUntil}.`, M, y);
     y = doc.y + 24;
   }
+  // ── Банковский блок ──
+  // Если меньше 90pt места — уезжает на новую страницу целиком.
+  if (y > PAGE.h - M - 110) {
+    doc.addPage();
+    y = M;
+  }
+  doc.moveTo(M, y).lineTo(PAGE.w - M, y)
+    .strokeColor("#e0d8c8").lineWidth(0.5).stroke();
+  y += 8;
+  doc.font("bold").fontSize(8).fillColor("#333")
+    .text("Реквизиты для оплаты:", M, y);
+  y += 12;
+  doc.font("reg").fontSize(7.5).fillColor("#666");
+  doc.text(
+    `${COMPANY.name} · ИНН ${COMPANY.tax.inn} · КПП ${COMPANY.tax.kpp}`,
+    M, y, { width: PAGE.w - 2 * M },
+  );
+  y += 10;
+  doc.text(
+    `р/с ${COMPANY.bank.rs} в ${COMPANY.bank.name}`,
+    M, y, { width: PAGE.w - 2 * M },
+  );
+  y += 10;
+  doc.text(
+    `БИК ${COMPANY.bank.bik} · к/с ${COMPANY.bank.ks}`,
+    M, y, { width: PAGE.w - 2 * M },
+  );
+  y += 18;
+
+  // ── Подпись ──
   if (kp.manager) {
-    doc.text(`Менеджер: ${kp.manager}  ____________________`, M, y);
+    doc.font("reg").fontSize(9).fillColor("#333");
+    doc.text(
+      `${COMPANY.signatory.position}  ____________________  ${kp.manager}`,
+      M, y,
+    );
   }
 
   // ── Нумерация страниц (bufferPages) ──

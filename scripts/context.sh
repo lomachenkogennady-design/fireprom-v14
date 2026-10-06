@@ -158,3 +158,6 @@ echo "  Размер: $SIZE"
 echo ""
 echo "Скопировать на Samsung:"
 echo "  scp -P 8022 u0_a304@192.168.10.21:~/CONTEXT.md ~/"
+
+# Авто-копия в общую память (для Samsung без Termux)
+cp "$OUT" /sdcard/Documents/fireprom-context.md 2>/dev/null || true
