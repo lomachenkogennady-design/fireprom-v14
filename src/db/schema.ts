@@ -106,3 +106,37 @@ export const cuttingCalculations = pgTable("cutting_calculations", {
     .defaultNow()
     .notNull(),
 });
+
+
+/** Производственные задания MES — операторские экраны */
+export const machineTasks = pgTable("machine_tasks", {
+  id: serial("id").primaryKey(),
+  machineId: text("machine_id").notNull(),
+  station: text("station").notNull(),
+  quoteId: integer("quote_id").references(() => quotes.id, { onDelete: "set null" }),
+  partName: text("part_name").notNull(),
+  qty: integer("qty").notNull(),
+  done: integer("done").notNull().default(0),
+  scrap: integer("scrap").notNull().default(0),
+  status: text("status").notNull().default("queued"),
+  dxfPath: text("dxf_path"),
+  note: text("note"),
+  meta: jsonb("meta"),
+  operatorId: text("operator_id"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Аудит: каждое нажатие "+1"/"брак" — строка */
+export const machineEvents = pgTable("machine_events", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").references(() => machineTasks.id, { onDelete: "cascade" }).notNull(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type MachineTask   = typeof machineTasks.$inferSelect;
+export type NewMachineTask = typeof machineTasks.$inferInsert;
+export type MachineEvent  = typeof machineEvents.$inferSelect;

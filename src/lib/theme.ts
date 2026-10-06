@@ -114,6 +114,11 @@ export function isThemeKey(v: unknown): v is ThemeKey {
 export const THEME_FOR_PATH: ReadonlyArray<readonly [string, ThemeKey]> = [
   ["/bending", "blueprint"],
   ["/cutting", "blueprint"],
+  ["/laser", "shopfloor"],
+  ["/press", "shopfloor"],
+  ["/weld",  "shopfloor"],
+  ["/paint", "shopfloor"],
+  ["/pack",  "shopfloor"],
   ["/kp", "paper"],
   ["/machine", "shopfloor"],
   ["/ui", "terminal"],
