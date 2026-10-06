@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
    */
   output: "standalone",
 
+  // pdfkit читает data-файлы с диска — не бандлим
+  serverExternalPackages: ["pdfkit"],
+
   // На маломощных тарифах телеметрия только мешает сборке
   productionBrowserSourceMaps: false,
 
