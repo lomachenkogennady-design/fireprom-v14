@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { askExpert, contextSummary } from "@/lib/jarvis/expert";
 import type { JarvisSnapshot, JarvisMessage } from "@/lib/jarvis/types";
 import { resolveProvider, type LlmProvider } from "@/lib/jarvis/llm";
+import { askMes } from "@/lib/jarvis/mes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -191,6 +192,20 @@ export async function POST(req: Request) {
 
   const snapshot = sanitizeSnapshot(body.context);
   const history = Array.isArray(body.history) ? body.history : [];
+
+  // 0. MES-интенты — производственная очередь (требуют БД)
+  try {
+    const mes = await askMes(question);
+    if (mes) {
+      return NextResponse.json({
+        answer: mes.answer,
+        source: "expert",
+        intent: mes.intent,
+      });
+    }
+  } catch (e) {
+    console.error("[jarvis] askMes failed:", e);
+  }
 
   // 1. Инженерный движок — числа только из расчёта
   let expert: { answer: string; intent: string; score: number } | null = null;
