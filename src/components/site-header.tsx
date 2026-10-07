@@ -10,6 +10,8 @@ import {
   Cog,
   Scissors,
   Factory,
+  Inbox,
+  Bot,
 } from "lucide-react";
 import { clsx } from "@/lib/format";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -19,6 +21,8 @@ const NAV = [
   { href: "/bending", label: "Технологу", icon: DraftingCompass },
   { href: "/cutting", label: "Резка", icon: Scissors },
   { href: "/kp", label: "Менеджеру", icon: FileSpreadsheet },
+  { href: "/leads",   label: "Заявки", icon: Inbox },
+  { href: "/bot",     label: "Бот",    icon: Bot },
   { href: "/history", label: "История", icon: History },
   { href: "/mes/queue", label: "Цех", icon: Factory },
   { href: "/machine", label: "Станок", icon: Cog },
