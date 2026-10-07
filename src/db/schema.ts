@@ -163,6 +163,15 @@ export const leads = pgTable("leads", {
   referrer: text("referrer"),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  tgUserId: text("tg_user_id"),
+  tgUsername: text("tg_username"),
+  botUsername: text("bot_username"),
+  priority: text("priority").notNull().default("normal"),
+  amount: integer("amount"),
+  manager: text("manager"),
+  notifiedAt: timestamp("notified_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  product: text("product"),
 });
 
 export const leadItems = pgTable("lead_items", {
@@ -193,3 +202,6 @@ export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
 export type LeadItem = typeof leadItems.$inferSelect;
 export type LeadFile = typeof leadFiles.$inferSelect;
+
+// ═══ Bot Studio tables ═══
+export * from "./schema-studio";
