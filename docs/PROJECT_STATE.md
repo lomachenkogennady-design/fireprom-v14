@@ -220,3 +220,60 @@ process.cwd() = .next/standalone, uploads уезжал внутрь standalone �
   • MAX Bot API — не проверен, добавление отложено
   • IMAP san@fire-prom.ru — не проверен, добавление отложено
   • Автозапуск через Termux:Boot — не настроен
+
+---
+
+## 22. Обновление 07.10.2026 — прайсы в Telegram
+
+### @Fireprombot — модуль прайсов
+
+Добавлены в бота на Samsung (~/fireprom-intake/bot.py):
+
+  Команды (всем):
+    /doors — прайс дверей ТИП 1-11 (32 000 – 44 000 ₽/м²)
+    /price — прайс монтажа (замер, доставка, ПСУЛ, портал, документация)
+
+  Кнопки клиенту (CLIENT_KB):
+    [📝 Новая заявка]
+    [💰 Цены]  [📞 Контакты]
+    [ℹ️ О компании]
+
+  Подменю (PRICES_KB):
+    [🚪 Противопожарные двери] → DOOR_PRICES
+    [🔧 Монтаж и услуги]        → SERVICE_PRICES
+    [⬅️ Назад]                  → CLIENT_KB/MENU_KB
+
+Источник прайсов — старый информационный бот (~/bot.py от 01.08.2026,
+токен 8924445497 отозван). Код сохранён в ~/archive/bot.py.old-20261007.
+
+### Управление ботами (Samsung)
+
+  ~/fireprom-intake/start.sh    — стоп + старт обоих ботов (double-fork)
+  ~/fireprom-intake/watchdog.sh — проверка и перезапуск
+  ~/fireprom-intake/bot.log     — лог @Fireprombot
+  ~/fireprom-bot/bot.log        — лог @fireprom_bot
+
+Cron:  */5 * * * * watchdog.sh (cronie 1.7.2)
+Boot:  ~/.termux/boot/02-fireprom-bots.sh + 03-crond.sh
+
+### Ловушки 07.10.2026
+
+  • setsid python3 bot.py & без subshell — родитель ждёт вечно.
+    Правильно: ( setsid python3 bot.py & ) — subshell умирает, родитель идёт дальше.
+  • watchdog.sh считает процессы по cwd, а не по cmdline
+    (команда python3 bot.py не содержит пути).
+  • Inline-кнопки (callback) через Orbot SOCKS5 теряются — использовать reply.
+  • Эмодзи в reply-кнопках: нормализация через normalize(txt)
+    (эмодзи могут отличаться — с U+FE0F и без).
+
+### Мёртвые токены (не удалять из истории)
+
+  8294326412 — Unauthorized
+  8610694040 — Unauthorized
+  8924445497 — Unauthorized (старый информационный бот)
+
+### Живые боты
+
+  @fireprom_bot (8692066131)       — конфигуратор
+  @Fireprombot (8254899354)        — заявки + прайсы + менеджер
+  @ark_metaldoors_bot (8636927420) — голосовой ассистент (эксперимент, не в cron)
