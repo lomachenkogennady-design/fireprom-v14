@@ -502,3 +502,57 @@ Tor на Samsung: termux-пакет через runsv, НЕ Orbot app.
   • api.telegram.org/ → 302 core.telegram.org/bots (норма)
   • Python requests игнорирует CURL_CA_BUNDLE (свой certifi)
   • pkg search застревает в less — выходить q
+
+### 25. IMAP-приём писем — реализован (09.10.2026)
+
+Схема:
+  san@fire-prom.ru → переадресация → aleksandr.aleksandr71@yandex.ru
+    → IMAP inbox.py (Samsung, cron */5)
+    → POST /api/email/inbound (Doogee)
+    → email-intake.ts: extractPhone, dedup, createLead, queueNotifications
+    → notifications (pending) → notifier.py → TG + Email
+
+Файлы:
+  Doogee: src/lib/email-intake.ts
+          src/app/api/email/inbound/route.ts
+          src/db/schema-studio.ts (inboundMessages + uniqueIndex)
+          next.config.ts (typescript.ignoreBuildErrors=true)
+  Samsung: ~/fireprom-intake/inbox.py (138 строк)
+           ~/fireprom-intake/inbox-cron.sh
+           crontab: */5 * * * * inbox-cron.sh
+
+Фильтры inbox.py:
+  • возраст >30 дней — архивируется (\Seen без POST)
+  • SKIP_FROM_RE (noreply, github, mailer-daemon, id.yandex, devnull,
+    sberbank, tinkoff, business-info, @360.yandex и др.)
+  • is_bulk(): List-Unsubscribe / Precedence: bulk|list|junk
+    / List-Id / X-Mailchimp-Campaign
+
+End-to-end тест (09.10.2026 12:50):
+  self-send → uid=2368 → POST 201 → leadId=15 → L-261009-009
+  → notifications #19 email sent, #20 telegram sent ✓
+
+Cron работает (проверено 12:40-12:55):
+  каждые 5 мин — Inbox started, UNSEEN=0, Обработано: 0
+
+Подводные камни (новые):
+  • CURL_CA_BUNDLE/REQUESTS_CA_BUNDLE/SSL_CERT_FILE в .bashrc
+    ломают Python SSL, если указан только ca-full.crt (Минцифры).
+    Решение: все три → combined-ca.crt (certifi + ca-full склеены).
+  • Cron запускает процессы в чистом env (без .bashrc) — notifier
+    и inbox под cron работают даже со «сломанным» .bashrc.
+  • Письма, открытые в Mail для Android, становятся \Seen →
+    inbox.py их не видит. Для тестов снимать флаг через IMAP.
+  • self-send иногда не попадает в UNSEEN — зависит от ящика.
+  • imaplib.search() не принимает non-ASCII (русские темы) —
+    искать локально после fetch ALL.
+  • next build --webpack падает на ARM в SWC WASM
+    («invalid type: unit value, expected usize») на этапе
+    Running TypeScript. Обход: typescript.ignoreBuildErrors=true,
+    typecheck отдельно через npm run typecheck.
+  • Standalone: после next build надо вручную
+    cp -r .next/static .next/standalone/.next/
+    cp -r public .next/standalone/ (иначе UI 404 на CSS/JS)
+  • Рестарт Next.js: kill $(cat ~/fireprom.pid) +
+    cd .next/standalone && PORT=3000 HOSTNAME=0.0.0.0 \
+    NODE_ENV=production nohup node server.js &
