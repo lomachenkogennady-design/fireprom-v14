@@ -277,3 +277,86 @@ Boot:  ~/.termux/boot/02-fireprom-bots.sh + 03-crond.sh
   @fireprom_bot (8692066131)       — конфигуратор
   @Fireprombot (8254899354)        — заявки + прайсы + менеджер
   @ark_metaldoors_bot (8636927420) — голосовой ассистент (эксперимент, не в cron)
+
+---
+
+## 23. Обновление 09.10.2026 — уведомления TG + Email
+
+### Таблицы БД (итого 21)
+
+  products         прайс с категориями
+  bot_commands     команды бота в БД
+  lead_events      лента событий заявки
+  notifications    журнал уведомлений (+ subject, status)
+  bot_settings     key/value
+  channels         каналы доставки (telegram, email)
+
+### API
+
+  GET   /api/products[?category=]      
+  POST  /api/products                  
+  PATCH /api/products/:id              
+  DELETE /api/products/:id             
+  GET   /api/bot/commands              
+  POST  /api/bot/commands              
+  PATCH /api/bot/commands/:id          
+  DELETE /api/bot/commands/:id         
+  GET   /api/bot/settings              
+  POST  /api/bot/settings              
+  GET   /api/notifications?status=pending  ← очередь для notifier
+  PATCH /api/notifications/:id             ← статус sent/failed/archived
+  POST  /api/leads/:id/notify              ← ручное уведомление
+  POST  /api/leads                         ← + queueNotifications() при создании
+
+### Уведомления — архитектура
+
+  Doogee создаёт заявку
+     ↓ INSERT leads + notifications (status=pending)
+  Samsung: ~/fireprom-intake/notifier.py
+     ↓ loop 10 сек: GET /api/notifications?status=pending
+     ├─ telegram → @Fireprombot через SOCKS5 (Orbot 9050)
+     └─ email    → smtp.yandex.ru:465
+     ↓ PATCH /api/notifications/:id {status: sent|failed}
+
+  MAX — ручное дублирование (нет токена)
+
+### SMTP — Яндекс с переадресацией
+
+  Логин: aleksandr.aleksandr71@yandex.ru
+  От:    san@fire-prom.ru (псевдоним не подтверждён → от личного)
+  Цель:  san@fire-prom.ru → переадресация → личный ящик
+  Пароль приложения: см. ~/fireprom-intake/.env
+
+### CA Минцифры (для MAX API)
+
+  Установлен на Samsung и Doogee:
+    ~/certs/Russian_Trusted_Root_CA.cer
+    ~/certs/ca-full.crt
+    ~/.bashrc: CURL_CA_BUNDLE, REQUESTS_CA_BUNDLE, SSL_CERT_FILE
+
+  После установки:
+    curl https://platform-api2.max.ru/me → {"code":"verify.token"}
+
+### Watchdog (Samsung)
+
+  ~/fireprom-intake/watchdog.sh — проверяет 3 процесса:
+    @fireprom_bot  (~/fireprom-bot/bot.py)
+    @Fireprombot   (~/fireprom-intake/bot.py)
+    notifier.py    (~/fireprom-intake/notifier.py)
+
+  Cron: */5 * * * * watchdog.sh
+
+### End-to-end проверка
+
+  Заявка L-261009-004 «ФИНАЛ»:
+    → Postgres + 2 pending в notifications
+    → notifier: TG ✓ (bot8254899354), Email ✓ (san@fire-prom.ru)
+    → PATCH: status=sent
+    → пришло менеджеру в TG + в почту
+
+### Отложено
+
+  • MAX — ручное дублирование (токен бота не получен)
+  • /leads и /bot в браузере — проверить визуально
+  • /api/email/inbound и /api/email/poll — только Email-отправка, приём не реализован
+  • Android APK Studio, Sites, Presentation — не трогали
