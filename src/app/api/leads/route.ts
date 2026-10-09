@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, leadFiles } from "@/db/schema";
-import { leadEvents } from "@/db/schema-studio";
+import { leadEvents, notifications, channels } from "@/db/schema-studio";
 import { sql, eq, desc, and, or, ilike } from "drizzle-orm";
 import fs from "node:fs";
 import path from "node:path";
@@ -58,6 +58,33 @@ export async function GET(req: NextRequest) {
 }
 
 /** POST /api/leads — создать (JSON или multipart) */
+
+
+/** Создать pending-записи для всех активных каналов */
+async function queueNotifications(
+  leadId: number,
+  lead: { number: string; name: string; phone?: string | null; email?: string | null; message?: string | null; source: string; requestType?: string | null },
+) {
+  const chans = await db.select().from(channels).where(eq(channels.enabled, true));
+  for (const ch of chans) {
+    const text = "🔥 Новая заявка #" + lead.number + "\n" +
+      "👤 " + lead.name + "\n" +
+      "📞 " + (lead.phone ?? "—") + "\n" +
+      "✉️ " + (lead.email ?? "—") + "\n" +
+      "🧩 " + (lead.requestType ?? "—") + "\n" +
+      "💬 " + (lead.message ?? "—") + "\n" +
+      "📍 Источник: " + lead.source;
+    await db.insert(notifications).values({
+      leadId,
+      channel: ch.kind,
+      target: ch.target,
+      subject: ch.subject ? ch.subject.replace("{number}", lead.number) : null,
+      text,
+      status: "pending",
+    });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? "";
 
@@ -78,6 +105,15 @@ export async function POST(req: NextRequest) {
       message: body.message ? String(body.message) : null,
       priority: body.phone ? "hot" : "normal",
     }).returning({ id: leads.id });
+
+    await queueNotifications(newLead.id, {
+      number, name,
+      phone: body.phone ? String(body.phone) : null,
+      email: body.email ? String(body.email) : null,
+      message: body.message ? String(body.message) : null,
+      source: String(body.source ?? "phone"),
+      requestType: null,
+    });
 
     await db.insert(leadEvents).values({
       leadId: newLead.id,
@@ -140,6 +176,14 @@ export async function POST(req: NextRequest) {
     botUsername: String(fd.get("botUsername") ?? "") || null,
     priority: phone ? "hot" : "normal",
   }).returning({ id: leads.id });
+
+  await queueNotifications(newLead.id, {
+    number, name, phone,
+    email: email || null,
+    message: String(fd.get("message") ?? "") || null,
+    source: String(fd.get("source") ?? "site"),
+    requestType: String(fd.get("requestType") ?? "") || null,
+  });
 
   if (files.length > 0) {
     const leadDir = path.join(UPLOAD_ROOT, String(newLead.id));

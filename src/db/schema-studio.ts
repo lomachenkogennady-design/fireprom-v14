@@ -71,8 +71,31 @@ export const notifications = pgTable("notifications", {
   text: text("text").notNull(),
   status: text("status").notNull().default("sent"),
   error: text("error"),
+  subject: text("subject"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Каналы уведомлений: telegram | email */
+export const channels = pgTable("channels", {
+  id: serial("id").primaryKey(),
+  kind: text("kind").notNull(),
+  title: text("title").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  target: text("target").notNull().default(""),
+  subject: text("subject"),
+  template: text("template"),
+  sortOrder: integer("sort_order").notNull().default(100),
+  lastStatus: text("last_status"),
+  lastError: text("last_error"),
+  lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+  sentCount: integer("sent_count").notNull().default(0),
+  failCount: integer("fail_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Channel = typeof channels.$inferSelect;
+export type NewChannel = typeof channels.$inferInsert;
+
 
 /** Настройки бота (key/value) */
 export const botSettings = pgTable(
