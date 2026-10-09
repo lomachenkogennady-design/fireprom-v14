@@ -443,3 +443,35 @@ Boot:  ~/.termux/boot/02-fireprom-bots.sh + 03-crond.sh
 | отдельно | Sites (`lib/site-variants*`, `api/site/*`, SiteNav) | срм1 + срм2 |
 | отдельно | Presentation (`lib/presentation`, `Presentation.tsx`) | срм1 |
 | отдельно | Android APK (`android/`, `build-termux.sh`) | срм2 |
+
+### Финальная проверка сессии (09.10.2026 11:50)
+
+Прогон ~/test-fireprom.sh (на Samsung): PASS=44 FAIL=3 WARN=2.
+Все FAIL/WARN — ложные срабатывания теста:
+  • /api/mes/tasks требует ?station=... — работает как задумано
+  • /api/kp не существует (есть /api/kp/[id]/pdf)
+  • @fireprom_bot — жив (PID 7932, u0_a624, python3 bot.py)
+  • SOCKS5: порт 9050 открыт, но HTTP 000 — у Samsung нет
+    исходящего интернета (direct TG тоже 000)
+
+Состояние стека на конец сессии:
+  • 21 таблица, 12 leads, 14 notifications (0 pending, все sent)
+  • 16/16 страниц UI → 200
+  • 14/16 API → 200
+  • POST /api/leads → 201
+  • Пайплайн TG+Email отработал 12/12 (11:22-11:24)
+  • 3 бота живы, watchdog OK, cron OK
+  • HEAD=3ba42fe (раздел 24), working tree чист
+  • Ref: a95d202 (битый) → reset → 3ba42fe (полный через scp)
+
+⚠️ На конец сессии: Orbot/SOCKS5 без выхода в интернет,
+   notifier вхолостую (0 pending). Диагностику продолжить
+   в следующей сессии — Wi-Fi ping работает, HTTPS нет.
+
+Отложено:
+  • MAX-токен (dev.max.ru)
+  • IMAP-приём (email-intake + api/email/*)
+  • Апгрейд /leads из срм2 (LeadsBoard, LeadDetail, LeadEditor, QuickLeadForm)
+  • ChannelsTab в /bot UI
+  • APK Studio, Sites, Presentation, Android APK
+  • Диагностика Orbot (DNS vs bootstrap)
