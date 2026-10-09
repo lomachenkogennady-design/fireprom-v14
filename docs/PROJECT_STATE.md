@@ -475,3 +475,30 @@ Boot:  ~/.termux/boot/02-fireprom-bots.sh + 03-crond.sh
   • ChannelsTab в /bot UI
   • APK Studio, Sites, Presentation, Android APK
   • Диагностика Orbot (DNS vs bootstrap)
+
+### Пост-сессия: диагностика CA и Tor (09.10.2026 11:55)
+
+Проблема: HTTPS из curl падал с 000 на всех публичных сайтах.
+
+Причина: CURL_CA_BUNDLE=$HOME/certs/ca-full.crt (только CA Минцифры
+для MAX API) ЗАМЕНЯЛ системный bundle. Публичных CA в нём нет.
+Решение: cat certifi.where() + ca-full.crt > combined-ca.crt.
+
+Tor на Samsung: termux-пакет через runsv, НЕ Orbot app.
+  u0_a624  runsv tor
+  u0_a624  svlogd -tt .../var/log/sv/tor
+  sv in package runit
+Порт 9050 работает. api.telegram.org напрямую блокируется
+провайдером (IPv4 timeout, IPv6 unreachable) — норма, TG через SOCKS5.
+
+Подтверждено:
+  • getMe через SOCKS5 → {"ok":true, username:Fireprombot}
+  • notifier 11:49 (#15 email, #16 telegram ✓)
+  • POST /api/leads → id=13, L-261009-008
+
+Подводные камни (дополнение):
+  • CURL_CA_BUNDLE заменяет, не дополняет — cat certifi+ca-full
+  • Tor = termux-pkg через runsv, не Orbot app
+  • api.telegram.org/ → 302 core.telegram.org/bots (норма)
+  • Python requests игнорирует CURL_CA_BUNDLE (свой certifi)
+  • pkg search застревает в less — выходить q
