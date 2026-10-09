@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   // На маломощных тарифах телеметрия только мешает сборке
   productionBrowserSourceMaps: false,
 
+  // ⚡ Обход бага SWC WASM на Android/ARM (09.10.2026)
+  // TypeScript-воркер падает с "invalid type: unit value, expected usize"
+  // Typecheck отдельно: npm run typecheck
+  typescript: { ignoreBuildErrors: true },
+
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.pexels.com" }],
   },

@@ -113,3 +113,22 @@ export type Product = typeof products.$inferSelect;
 export type BotCommand = typeof botCommands.$inferSelect;
 export type LeadEvent = typeof leadEvents.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
+
+/** Входящие письма — IMAP-поллер (email-intake, 09.10.2026) */
+export const inboundMessages = pgTable(
+  "inbound_messages",
+  {
+    id: serial("id").primaryKey(),
+    channel: text("channel").notNull().default("email"),
+    externalId: text("external_id"),
+    fromAddr: text("from_addr").notNull(),
+    subject: text("subject"),
+    body: text("body").notNull(),
+    leadId: integer("lead_id"),
+    processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uniq_inbound_external").on(t.channel, t.externalId)],
+);
+
+export type InboundMessage = typeof inboundMessages.$inferSelect;
+export type NewInboundMessage = typeof inboundMessages.$inferInsert;
