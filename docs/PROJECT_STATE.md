@@ -360,3 +360,86 @@ Boot:  ~/.termux/boot/02-fireprom-bots.sh + 03-crond.sh
   • /leads и /bot в браузере — проверить визуально
   • /api/email/inbound и /api/email/poll — только Email-отправка, приём не реализован
   • Android APK Studio, Sites, Presentation — не трогали
+
+---
+
+## 24. Источники и резерв (09.10.2026)
+
+### срм1 (5) — рабочая база
+Путь: `/sdcard/срм1/daily-development-and-deployment (5)/`
+
+**Взято в v14 (или переработано):**
+- ✅ `lib/settings.ts`
+- ✅ `lib/constants.ts` → `bot-constants.ts`
+- ✅ `lib/types.ts` → `bot-types.ts`
+- ✅ `lib/seed.ts` (переработан под прайсы/команды ФАЙЕРПРОМ)
+- ✅ `components/LeadsClient.tsx`, `components/BotStudio.tsx`
+- ✅ `app/leads/page.tsx`, `app/bot/page.tsx`
+- ✅ `api/leads/[id]/notify/route.ts`
+- ✅ `api/products/*`, `api/bot/commands/*`, `api/bot/settings`
+
+**Реализовано в другой форме:**
+- 🟡 `lib/channels/*` → таблица `channels` + Python `notifier.py`
+- 🟡 `lib/bot-engine.ts` → Python-боты на Samsung
+- 🟡 `lib/telegram.ts` → `notifier.py` через SOCKS5
+- 🟡 `lib/channels/email.ts` → SMTP через Python + Yandex
+- 🟡 `lib/channels/max.ts` → отложен до токена MAX
+
+**В резерве (не трогали):**
+- ❌ `lib/email-intake.ts` + `api/email/{inbound,poll}` — IMAP-приём
+- ❌ `api/max/webhook` — после токена MAX
+- ❌ `api/bot/{simulate,webhook}` — песочница (зависит от bot-engine)
+- ❌ `api/stats`, `api/site/stats`, `api/track` — статистика + трекинг
+- ❌ `components/{ChannelsTab,ApkStudio,Presentation}.tsx`
+- ❌ `lib/{apk,apk-data,site-variants,presentation}.ts`
+- ❌ `app/{apk,presentation,site}/page.tsx`
+- ❌ `api/apk/{issues,script,steps}`, `api/channels/*`
+
+### срм2 (6) — параллельный продукт, не эволюция
+
+Пути:
+- `/sdcard/срм2/daily-development-and-deployment (6).zip`
+- `/sdcard/срм2/unpacked/` (содержимое без папки-обёртки)
+
+**Структура `unpacked/`:**
+- `android/` — цельный Gradle-проект (Java, `build-termux.sh`)
+- `public/`
+- `src/app/(admin)/` — route group админки
+- `src/app/api/` — API
+- `src/app/presentation/` — презентация
+- `src/app/sites/` — 5 шаблонов сайтов
+- `src/components/` — богатый leads UI + `presentation/` + `site/`
+  - `LeadDetail.tsx` — развёрнутая карточка (нет в v14)
+  - `LeadEditor.tsx` — редактор (нет в v14)
+  - `LeadsBoard.tsx` — альтернативный борд (нет в v14)
+  - `QuickLeadForm.tsx` — быстрая форма (нет в v14)
+  - `CheckBotsButton.tsx` — статус ботов (нет в v14)
+  - `CopyButton.tsx` — утилита (нет в v14)
+  - `SiteNav.tsx` — навигация сайтов (нет в v14)
+
+**Отличия от срм1:**
+- ➕ `android/` (Java, gradle) — отдельный продукт
+- ➕ `(admin)/` — route group
+- ➕ `sites/` + `presentation/` — отдельные модули
+- ➕ улучшенный leads UI (Board/Detail/Editor/QuickForm)
+- ➕ `api/telegram/webhook` — webhook вместо polling
+- ➖ `bot-engine.ts` — отсутствует
+
+**Из срм2 не брали.** Возможный резерв:
+- ⏸ LeadsBoard + LeadDetail + LeadEditor + QuickLeadForm — апгрейд `/leads`
+- ⏸ CheckBotsButton — мониторинг в UI
+- ⏸ `sites/`, `presentation/`, `(admin)/`, `android/` — отдельные сессии
+
+### Резерв по приоритетам (следующие сессии)
+
+| Приоритет | Что | Откуда |
+|---|---|---|
+| 🔥 высокий | IMAP-приём (`email-intake` + `api/email/*`) | срм1 |
+| 🔥 высокий | Апгрейд `/leads` (LeadsBoard, LeadDetail, LeadEditor, QuickLeadForm) | срм2 |
+| средний | `api/stats`, `api/site/stats`, `api/track` | срм1 |
+| средний | ChannelsTab — вкрутить в `/bot` UI | срм1 |
+| после MAX | `lib/channels/max.ts` + `api/max/webhook` | срм1 |
+| отдельно | APK Studio (`lib/apk*`, `api/apk/*`, `ApkStudio.tsx`) | срм1 |
+| отдельно | Sites (`lib/site-variants*`, `api/site/*`, SiteNav) | срм1 + срм2 |
+| отдельно | Presentation (`lib/presentation`, `Presentation.tsx`) | срм1 |
+| отдельно | Android APK (`android/`, `build-termux.sh`) | срм2 |
