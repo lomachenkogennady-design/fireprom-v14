@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>FireProM v14 — инструкция</title>
+<style>
+  body { font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.5;
+         max-width: 210mm; margin: 15mm auto; padding: 0 15mm; color: #000; }
+  h1 { font-size: 18pt; text-align: center; border-bottom: 3px solid #000; padding-bottom: 6px; }
+  h2 { font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 3px; margin-top: 24px; }
+  code { font-family: "Courier New", monospace; font-size: 9.5pt;
+         background: #f4f4f4; padding: 2px 4px; }
+  pre { background: #f4f4f4; border: 1px solid #ccc; padding: 10px;
+        font-family: "Courier New", monospace; font-size: 9pt;
+        white-space: pre-wrap; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }
+  th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; }
+  th { background: #e0e0e0; }
+  .warn { background: #fff3cd; border-left: 4px solid #ff9800; padding: 8px 12px; margin: 8px 0; }
+  .foot { margin-top: 40px; padding-top: 10px; border-top: 1px solid #000;
+          font-size: 9pt; text-align: center; color: #555; }
+</style>
+</head>
+<body>
+
+<h1>FireProM v14 — инструкция для новой сессии</h1>
+<p style="text-align:center;color:#555;">Дата: 2026-10-12 · Коммит 6414d5f</p>
+
+<h2>Доступ</h2>
+<pre>ssh -p 8022 u0_a304@192.168.10.21</pre>
+<p>Сервер: Doogee V40 Pro, Termux. Пульт: Xiaomi Redmi Note 10 Pro.</p>
+
+<h2>Проверка здоровья</h2>
+<pre>ssh -p 8022 u0_a304@192.168.10.21 "ps -ef | grep next-server | grep -v grep ; \
+  curl -s http://127.0.0.1:3000/api/health ; echo"</pre>
+<p>Ожидаем: строка <code>next-server</code> + <code>{"ok":true,"db":"connected"}</code>.</p>
+
+<h2>Перезапуск</h2>
+<pre>ssh -p 8022 u0_a304@192.168.10.21 "cd ~/fireprom-v14 && \
+  npm run build:standalone 2>&1 | grep -E 'Compiled|Failed' ; \
+  pkill -f next-server ; sleep 3 ; \
+  cd .next/standalone && \
+  setsid env PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production node server.js > ~/next.log 2>&1 &lt; /dev/null &amp; \
+  sleep 20 ; curl -s http://127.0.0.1:3000/api/health"</pre>
+
+<h2>UI</h2>
+<table>
+  <tr><th>URL</th><th>Что</th></tr>
+  <tr><td>/admin/price-lists</td><td>Прайсы</td></tr>
+  <tr><td>/admin/doors</td><td>Каталог дверей (5 табов)</td></tr>
+  <tr><td>/doors/new</td><td>Конфигуратор двери</td></tr>
+</table>
+
+<h2>Данные БД</h2>
+<ul>
+  <li>Активный прайс: id=6 «Прайс дверей Q4 v2», 17 позиций</li>
+  <li>Каталог: 3 профиля, 3 наполнения, 3 отделки, 4 фурнитуры, 5 услуг</li>
+  <li>Заказы: 1 тестовый (id=1, subtotal=29490, total=35977.80)</li>
+</ul>
+
+<h2>Что сделано</h2>
+<ul>
+  <li>PR-1: прайс-инфраструктура</li>
+  <li>PR-2: API прайсов</li>
+  <li>PR-3: UI прайсов</li>
+  <li>PR-4: схема каталога дверей</li>
+  <li>PR-5a-e: сид, сервис, API, UI, калькулятор</li>
+  <li>PR-6: заказы дверей</li>
+  <li>PR-8: конфигуратор /doors/new</li>
+</ul>
+
+<h2>Roadmap</h2>
+<ol>
+  <li>UI заказов /admin/doors/orders</li>
+  <li>Интеграция door_order ↔ quote_items</li>
+  <li>Ретрофит quotes real → DECIMAL</li>
+  <li>RBAC перед NetBird</li>
+  <li>Backup cron</li>
+</ol>
+
+<h2>Грабли</h2>
+<div class="warn"><b>Turbopack на Android</b> — только <code>--webpack</code></div>
+<div class="warn"><b>Standalone без статики</b> — <code>cp -r .next/static .next/standalone/.next/</code></div>
+<div class="warn"><b>Tailwind тёмная тема</b> — <code>text-*-900</code> на светлых фонах</div>
+<div class="warn"><b>Bracketed paste</b> — <code>set +H</code> + перезапуск Termux</div>
+<div class="warn"><b>npx tsc</b> — только с <code>-p tsconfig.json</code></div>
+<div class="warn"><b>EADDRINUSE :3000</b> — watchdog уже держит порт</div>
+<div class="warn"><b>process.cwd failed</b> — pkill перед сборкой</div>
+
+<h2>Команда для ИИ</h2>
+<pre>cat ~/fireprom-v14/docs/PROGRESS.md
+cat ~/fireprom-v14/docs/NEXT_SESSION.md
+ssh -p 8022 u0_a304@192.168.10.21 "ps -ef | grep next-server ; \
+  curl -s http://127.0.0.1:3000/api/health"</pre>
+
+<div class="foot">FireProM v14 · 2026-10-12 · Termux on-premise</div>
+
+</body>
+</html>
