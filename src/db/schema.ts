@@ -205,3 +205,7 @@ export type LeadFile = typeof leadFiles.$inferSelect;
 
 // ═══ Bot Studio tables ═══
 export * from "./schema-studio";
+export * from "./schema-pricing";
+export * from "./schema-audit";
+export * from "./schema-doors";
+export * from "./schema-orders";

@@ -30,3 +30,6 @@ src.bak_*
 tsconfig.tsbuildinfo
 next-env.d.ts
 uploads/
+
+# drizzle-kit artifacts
+drizzle/

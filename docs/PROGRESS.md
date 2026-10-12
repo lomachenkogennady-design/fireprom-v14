@@ -1,0 +1,201 @@
+
+---
+
+## PR-3 — UI прайс-листов (закрыт 2026-10-12)
+
+### Файлы
+
+- src/app/admin/price-lists/page.tsx (7) — server component
+- src/components/admin/price-lists/PriceListsClient.tsx (163) — client
+- src/app/api/admin/price-lists/* — 5 роутов (см. PR-2)
+
+### Функции UI
+
+- Список всех версий с тегами draft/published/active
+- Кнопка «Опубликовать» на черновиках
+- Кнопка «Активировать» на published, не active
+- Клик по версии — раскрытие позиций
+- Плашка активного прайса
+- Кнопка «Обновить»
+
+### Уроки
+
+1. Next.js standalone: статику надо копировать вручную:
+   cp -r .next/static .next/standalone/.next/
+   Добавлен npm скрипт build:standalone.
+2. Tailwind на тёмной теме: светлые фоны (bg-green-50)
+   требуют явных text-*-900, иначе текст невидим.
+3. Turbopack не работает на Android/arm64 — только webpack.
+4. Bracketed paste в Termux ломает вставки команд.
+   Решение: printf вместо heredoc, или отключить.
+
+### Статус
+
+PR-1, PR-2, PR-3 закрыты. Прайсы работают end-to-end
+через UI и API.
+
+---
+
+## PR-4 — Схема каталога дверей
+
+- scripts/sql/004_doors_catalog.sql (77) — 5 таблиц
+- src/db/schema-doors.ts (113) — Drizzle
+- Экспорт в schema.ts: export * from "./schema-doors"
+
+## PR-5a — Сид каталога
+
+- scripts/sql/005_doors_seed.sql (77)
+- 3 профиля, 3 наполнения, 3 отделки, 4 фурнитуры, 5 услуг
+- 18 записей в catalog_items, 18 в door_*
+
+## PR-5b — Сервис каталога
+
+- src/lib/doors/catalog-service.ts (402, 12 функций)
+- list + create для всех 5 типов
+- setCatalogItemActive — soft delete с audit
+
+## PR-5c — API каталога
+
+- src/app/api/admin/doors/route.ts (14) — сводка
+- src/app/api/admin/doors/[type]/route.ts (90) — универсальный GET/POST
+- src/app/api/admin/doors/catalog-item/[id]/route.ts (43) — PATCH soft delete
+
+Все тесты пройдены: 11/11 (список, создание, soft delete, audit).
+
+## Дальше
+
+- PR-5d: UI /admin/doors — таблицы 5 типов
+- PR-5e: Калькулятор дверей (DoorPriceCalculator.ts)
+- PR-5f: Конфигуратор + интеграция с КП
+
+---
+
+## PR-4 — Схема каталога дверей
+
+- scripts/sql/004_doors_catalog.sql (77) — 5 таблиц
+- src/db/schema-doors.ts (113) — Drizzle
+- Экспорт в schema.ts
+
+## PR-5a — Сид каталога
+
+- scripts/sql/005_doors_seed.sql
+- 3 профиля, 3 наполнения, 3 отделки, 4 фурнитуры, 5 услуг
+
+## PR-5b — Сервис каталога
+
+- src/lib/doors/catalog-service.ts (402, 12 функций)
+- list + create для всех 5 типов
+- setCatalogItemActive — soft delete с audit
+
+## PR-5c — API каталога
+
+- src/app/api/admin/doors/route.ts (14) — сводка
+- src/app/api/admin/doors/[type]/route.ts (90) — универсальный GET/POST
+- src/app/api/admin/doors/catalog-item/[id]/route.ts (43) — PATCH soft delete
+
+Тесты: 11/11 (список, создание, soft delete, audit).
+
+## Дальше
+
+- PR-5d: UI /admin/doors
+- PR-5e: Калькулятор дверей
+- PR-5f: Конфигуратор + интеграция с КП
+
+---
+
+## PR-5d — UI каталога дверей
+
+- src/app/admin/doors/page.tsx (7)
+- src/components/admin/doors/DoorsCatalogClient.tsx (~200)
+- 5 табов, таблица, soft delete toggle
+
+## PR-5e — Калькулятор дверей
+
+- src/lib/doors/DoorPriceCalculator.ts (~330)
+- src/app/api/doors/calculate/route.ts (~72)
+- POST /api/doors/calculate
+
+Тест: дверь 900×2000, профиль standard-60, минвата-50,
+отделки powder + mdf, 3 петли + замок + ручка, 3 услуги.
+Итог: subtotal=29490, pricingVersionId=5.
+Петля умножается на hingeCount — проверено.
+
+## Дальше
+
+- PR-5f: Конфигуратор UI + сохранение заказа двери
+- Интеграция door_order с quote_items
+- Ретрофит quotes (real -> DECIMAL)
+
+---
+
+## PR-6 — Заказы дверей
+
+### Схема
+
+- scripts/sql/006_door_orders.sql (88)
+- src/db/schema-orders.ts (~120)
+- 3 таблицы: door_orders, door_order_hardware, door_order_services
+- Триггер door_orders_touch_updated_at
+- 3 индекса на door_orders
+
+### Сервис
+
+- src/lib/doors/order-service.ts (~215, 3 функции)
+- createDoorOrder — транзакция: order + hardware + services + audit
+- pricing_snapshot с format_version и pricing_engine_version
+- getDoorOrder, listDoorOrders
+
+### API
+
+- src/app/api/doors/orders/route.ts (GET, POST)
+- src/app/api/doors/orders/[id]/route.ts (GET)
+
+### Тест
+
+Заказ id=1: дверь 900×2000, standard-60, минвата-50,
+отделки powder+mdf, 3 петли, замок, ручка, 3 услуги.
+subtotal=29490, vat=6487.80, total=35977.80.
+Петля ×3, price_at_order зафиксирована, audit записан.
+
+## Дальше
+
+- PR-7: UI заказов /admin/doors/orders
+- PR-8: Конфигуратор /doors/new
+- Ретрофит quotes (real -> DECIMAL)
+
+---
+
+## PR-7/8 — UI заказов + Конфигуратор
+
+### Файлы
+
+- src/app/doors/new/page.tsx (7)
+- src/components/doors/DoorsConfiguratorClient.tsx (~407)
+- POST /api/doors/orders — сохранение
+- GET /api/doors/orders, /orders/[id]
+
+### Что работает
+
+- Форма: клиент, габариты, петли, профиль, наполнение,
+  отделки (нар./внутр.), фурнитура, услуги
+- Кнопка «Рассчитать» → таблица позиций + subtotal
+- Кнопка «Сохранить заказ» → door_orders + snapshot + audit
+- Ошибки калькулятора отображаются в UI
+
+### Прайс дверей
+
+Активен v6 (id=6) «Прайс дверей Q4 v2» — 17 позиций,
+включая Kale 252 = 5000.00.
+
+### Скриншот-тест
+
+Конфигуратор: Премиум 100 + Комбинированный 60 + Powder + МДФ
++ весь hardware + все услуги → рассчитан, заказ сохранён.
+
+## Что ещё не сделано
+
+- UI списка заказов /admin/doors/orders
+- Интеграция door_order ↔ quote_items (родительский КП)
+- Ретрофит quotes real → DECIMAL
+- RBAC перед внешним доступом
+- Backup-регламент (cron для pg_dump)
