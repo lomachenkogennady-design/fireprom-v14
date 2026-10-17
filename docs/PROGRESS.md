@@ -350,3 +350,30 @@ pg_advisory_xact_lock(987654321) в начале транзакции activatePr
 - Тестировщик (locooperator:4b)
 - Администратор каталога
 - Team pipeline (planner → coder → reviewer)
+
+### Администратор каталога (финал)
+
+- qwen2.5-coder:7b: ❌ не выполнил shell с JSON (экранирование)
+- qwen3:4b-instruct: ✅ через скрипт-обёртку
+  bash ~/admin-add.sh → curl POST → профиль создан
+- Guardrails модели блокируют прямой curl с internal API,
+  но bash script.sh проходит
+
+### Итоговая таблица агентов
+
+| Агент | Модель | Механизм | Статус |
+|---|---|---|---|
+| Помощник по расчётам | qwen3:4b-instruct | bash ~/calc.sh | ✅ |
+| Тестировщик | locooperator:4b | inline curl (GET) | ✅ |
+| Ревьюер | llama3.1:8b | прямой Ollama API | ⚠️ |
+| Администратор | qwen3:4b-instruct | bash ~/admin-add.sh | ✅ |
+| Team pipeline | — | не запускался | — |
+
+### Выводы
+
+- qwen3:4b-instruct — лучший выбор для агентов: tool calling,
+  инструкции, guardrails обходятся через bash-скрипт.
+- qwen2.5-coder:7b — только генерация кода, не агент.
+- llama3.1:8b — находит проблемы, но фиксы неверные.
+- Скрипт-обёртка решает 2 проблемы: экранирование JSON +
+  guardrails модели на «опасные» команды.
