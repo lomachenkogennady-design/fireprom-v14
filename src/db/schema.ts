@@ -66,6 +66,7 @@ export const quoteItems = pgTable("quote_items", {
     .notNull(),
   name: text("name").notNull(),
   material: text("material").notNull(),
+  itemType: text("item_type").notNull().default("metal"),
   /** технология резки: laser | plasma | waterjet */
   tech: text("tech").notNull().default("laser"),
   thickness: real("thickness").notNull(),
