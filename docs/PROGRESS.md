@@ -243,3 +243,33 @@ tsc чист, сборка проходит, UI показывает корре�
 - Список + раскрытие: конфигурация, финансы, фурнитура, услуги, snapshot
 - Read-only
 - Мелочь: на узком экране колонки фурнитуры слипаются, данные в БД верные
+
+---
+
+## PR-9b-fix — цены door-позиции в КП (2026-10-17)
+
+### Что закрыто
+
+После PR-9b страница /kp?load=5 открывалась, но цена позиции
+была 0 ₽. Причина: calcItem ранний return для door возвращал
+unitPrice: (input as any).unitPrice ?? 0, а setItems не
+передавал цену из API.
+
+### Изменения
+
+- pricing.ts: QuoteItemInput получил unitPrice?: number, totalPrice?: number
+- calcItem: input.unitPrice ?? 0 без as any
+- quote-builder.tsx: setItems передаёт unitPrice/totalPrice из r
+- quote-builder.tsx:192: if ((i.material as string) === door) continue
+
+### Проверка
+
+КП-261017-05: позиция 29490 ₽, подытог 29490, НДС 6488,
+итого 35978 ₽.
+
+### Известные мелочи
+
+- В колонке «Материал» дверь отображается как «Ст3» —
+  UI не знает про material=door. Косметика, отдельная правка.
+- Итого в UI 35978 (округление до рубля) vs 35977.80 в БД.
+  Нормально для отображения.
