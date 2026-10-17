@@ -311,3 +311,42 @@ unitPrice: (input as any).unitPrice ?? 0, а setItems не
 - app_db-scheduled-*.sql.gz — ежедневные
 - app_db-manual-*.sql.gz — ручные
 - app_db-*.sql.gz старше 30 дней удаляются автоматически
+
+---
+
+## Агенты на Ollama — 2026-10-17
+
+### Установлено
+
+- agentkthx 0.7.34 (pip)
+- cowork-agent (go, /cmd/cowork) — FTS5 не работает в Termux
+- Модели: qwen2.5-coder:7b, frob/locooperator:4b, nomic-embed-text
+- review-* модели с num_ctx 16384
+
+### Результаты
+
+- **Помощник по расчётам** (qwen3:4b-instruct + tool calling): ✅
+  Вызвал shell → bash ~/calc.sh → subtotal 29490, НДС 6487.80, total 35977.80
+- **Ревьюер** (llama3.1:8b через прямой Ollama API): ⚠️
+  Нашёл гонку в activatePriceList, но рекомендация неверная
+  (FOR UPDATE SKIP LOCKED). Правильный фикс — pg_advisory_xact_lock —
+  добавлен вручную.
+- **qwen2.5-coder:7b как ревьюер**: ❌ вызывает calculator,
+  галлюцинирует. Только для генерации кода, не для анализа.
+
+### Вывод
+
+Локальные 4B–8B на 16 ГБ годятся для tool calling на API
+(расчёты, тесты, CRUD), но не для code review.
+
+### Фикс гонки
+
+pg_advisory_xact_lock(987654321) в начале транзакции activatePriceList.
+Проверено: old_value в audit_logs корректно фиксирует предыдущий versionId
+при переключении v5 ↔ v6.
+
+### Что осталось
+
+- Тестировщик (locooperator:4b)
+- Администратор каталога
+- Team pipeline (planner → coder → reviewer)
