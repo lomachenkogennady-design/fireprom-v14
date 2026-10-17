@@ -2,9 +2,9 @@
 // Создаёт quotes + quote_items (item_type=door), обновляет door_orders.quote_id/quote_item_id.
 // Идемпотентно: если у заказа уже есть quote_id — возвращает существующий КП.
 import { db } from "@/db";
+import { nextQuoteNumber } from "@/db/queries/quotes";
 import { quotes, quoteItems, doorOrders, auditLogs } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { quoteNumber } from "@/lib/pricing";
+import { eq } from "drizzle-orm";
 
 export class QuoteFromOrderError extends Error {
   constructor(message: string, public code: string) {
@@ -50,10 +50,7 @@ export async function createQuoteFromExistingOrder(
       };
     }
 
-    const [{ c }] = await tx
-      .select({ c: sql<number>`count(*)::int` })
-      .from(quotes);
-    const number = quoteNumber((c ?? 0) + 1);
+    const number = await nextQuoteNumber(tx);
 
     const [quote] = await tx
       .insert(quotes)

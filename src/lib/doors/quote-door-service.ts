@@ -1,6 +1,7 @@
 // Сервис: заказ двери как позиция КП, одной транзакцией.
 // Создаёт quotes + quote_items (item_type=door) + door_orders + audit.
 import { db } from "@/db";
+import { nextQuoteNumber } from "@/db/queries/quotes";
 import {
   quotes,
   quoteItems,
@@ -10,7 +11,6 @@ import {
   auditLogs,
 } from "@/db/schema";
 import { sql } from "drizzle-orm";
-import { quoteNumber } from "@/lib/pricing";
 import {
   computeDoorPrice,
   type DoorConfig,
@@ -91,10 +91,7 @@ export async function createQuoteWithDoor(input: CreateQuoteWithDoorInput) {
 
   return await db.transaction(async (tx) => {
     // 1. Счётчик КП
-    const [{ c }] = await tx
-      .select({ c: sql<number>`count(*)::int` })
-      .from(quotes);
-    const number = quoteNumber((c ?? 0) + 1);
+      const number = await nextQuoteNumber(tx);
 
     // 2. quotes — subtotal БЕЗ НДС, total С НДС
     const [quote] = await tx

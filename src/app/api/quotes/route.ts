@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { nextQuoteNumber } from "@/db/queries/quotes";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { quotes, quoteItems, clients } from "@/db/schema";
-import { calcItem, calcQuote, quoteNumber, type TechKey } from "@/lib/pricing";
+import { calcItem, calcQuote, type TechKey } from "@/lib/pricing";
 import type { MaterialKey } from "@/lib/materials";
 import { dbErrorResponse } from "@/lib/api";
 
@@ -62,10 +63,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await db.transaction(async (tx) => {
-      const [{ c }] = await tx
-        .select({ c: sql<number>`count(*)::int` })
-        .from(quotes);
-      const number = quoteNumber((c ?? 0) + 1);
+      const number = await nextQuoteNumber(tx);
 
       const [quote] = await tx
         .insert(quotes)
