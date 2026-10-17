@@ -199,3 +199,37 @@ subtotal=29490, vat=6487.80, total=35977.80.
 - Ретрофит quotes real → DECIMAL
 - RBAC перед внешним доступом
 - Backup-регламент (cron для pg_dump)
+
+---
+
+## Ретрофит quotes: real → numeric(12,2) — 2026-10-17
+
+Закрыт риск B (денежная арифметика на float64).
+
+### SQL
+
+- scripts/sql/007_quotes_decimal.sql
+- ALTER TABLE quotes: discount_pct, vat_pct, subtotal, total
+- ALTER TABLE quote_items: unit_price, total_price
+- Размеры (thickness, len, wid, cut_len) остались real
+
+### Код
+
+- schema.ts: 6 полей real → numeric
+- quotes/route.ts: .toFixed(2) на INSERT
+- kp-data.ts, history/route.ts, page.tsx: Number() при чтении
+
+### Проверка
+
+4 КП до и после — те же числа:
+id=1: 2071.00 → 2527.00
+id=2: 2071.00 → 2527.00
+id=3: 66.00 → 1000.00
+id=4: 6338.00 → 7732.00
+
+Оборот по КП: 13786 ₽ (не изменился).
+tsc чист, сборка проходит, UI показывает корректные суммы.
+
+### Статус
+
+Риск B закрыт для quotes/quote_items. door_* уже были numeric.
