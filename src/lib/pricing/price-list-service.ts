@@ -1,4 +1,4 @@
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   catalogItems,
@@ -147,6 +147,7 @@ export async function activatePriceList(
   ip: string | null = null,
 ) {
   return await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(987654321)`);
     const [version] = await tx
       .select()
       .from(priceListVersions)
