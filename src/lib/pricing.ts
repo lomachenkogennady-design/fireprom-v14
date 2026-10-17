@@ -147,6 +147,18 @@ export interface QuoteItemCalc extends QuoteItemInput {
 
 export function calcItem(input: QuoteItemInput): QuoteItemCalc {
   const mat = MATERIALS[input.material];
+  if (!mat) {
+    return {
+      ...input,
+      area: 0, mass: 0, autoCutLen: 0, autoPierces: 0,
+      effCutLen: 0, effPierces: 0, ratePerM: 0,
+      materialCost: 0, cutCost: 0, bendCost: 0, paintCost: 0,
+      qtyFactor: 1, scrapCredit: 0,
+      unitPrice: (input as any).unitPrice ?? 0,
+      totalPrice: (input as any).totalPrice ?? 0,
+      techError: null,
+    };
+  }
   const tech = TECH[input.tech] ?? TECH.laser;
   const area = (input.len * input.wid) / 1e6; // м²
   const mass = area * input.thickness * (mat.density / 1000); // кг

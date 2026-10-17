@@ -189,6 +189,7 @@ export function QuoteBuilder() {
   const nestGroups = useMemo<NestGroupInput[]>(() => {
     const map = new Map<string, NestGroupInput>();
     for (const i of computed) {
+      if (i.material === "door") continue;
       const key = `${i.material}|${i.thickness}|${i.tech}`;
       const entry = map.get(key) ?? {
         material: i.material,
@@ -838,7 +839,7 @@ export function QuoteBuilder() {
                   {it.paint ? " · порошковая покраска" : ""}
                 </td>
                 <td style={{ border: "1px solid #999", padding: "5px 6px" }}>
-                  {MATERIALS[it.material].label} s={nf(it.thickness)} · {TECH[it.tech].short}
+                  {MATERIALS[it.material]?.label ?? "Дверь"} s={nf(it.thickness)} · {TECH[it.tech]?.short ?? "—"}
                 </td>
                 <td style={{ border: "1px solid #999", padding: "5px 6px" }}>{it.len}×{it.wid}</td>
                 <td style={{ border: "1px solid #999", padding: "5px 6px" }}>{it.qty}</td>

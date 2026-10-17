@@ -272,7 +272,7 @@ export function NestingView({ groups }: { groups: NestGroupInput[] }) {
                 i === groupIdx ? "border-accent/70! text-accent!" : "hover:text-ink"
               )}
             >
-              {MATERIALS[g.material].short} · s={nf(g.thickness)}
+              {MATERIALS[g.material]?.short ?? g.material} · s={nf(g.thickness)}
             </button>
           ))}
         </div>
@@ -348,7 +348,7 @@ export function NestingView({ groups }: { groups: NestGroupInput[] }) {
       <div className="grid gap-2 sm:grid-cols-2">
         <p className="flex items-start gap-2 text-[11px] leading-relaxed text-steel">
           <Info size={12} className="mt-0.5 shrink-0" />
-          Рез {TECH[group.tech].short.toLowerCase()} {nf(result.kerf, 2)} мм, зазор между
+          Рез {TECH[group.tech]?.short?.toLowerCase() ?? ""} {nf(result.kerf, 2)} мм, зазор между
           деталями {nf(result.gap)} мм, отступ от кромки {result.margin} мм. Поворот на 90°
           разрешён (отмечен ↻).
         </p>
