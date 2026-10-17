@@ -233,3 +233,13 @@ tsc чист, сборка проходит, UI показывает корре�
 ### Статус
 
 Риск B закрыт для quotes/quote_items. door_* уже были numeric.
+
+---
+
+## PR-9 — UI списка заказов (2026-10-17)
+
+- src/app/admin/doors/orders/page.tsx (7)
+- src/components/admin/doors/OrdersListClient.tsx (~290)
+- Список + раскрытие: конфигурация, финансы, фурнитура, услуги, snapshot
+- Read-only
+- Мелочь: на узком экране колонки фурнитуры слипаются, данные в БД верные
