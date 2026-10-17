@@ -273,3 +273,41 @@ unitPrice: (input as any).unitPrice ?? 0, а setItems не
   UI не знает про material=door. Косметика, отдельная правка.
 - Итого в UI 35978 (округление до рубля) vs 35977.80 в БД.
   Нормально для отображения.
+
+---
+
+## A. Backup cron — 2026-10-17
+
+Закрыт операционный риск «нет регулярных бэкапов».
+
+### Скрипт
+
+- scripts/backup-db.sh: pg_dump app_db + gzip + ротация 30 дней
+- Ручной запуск: ./scripts/backup-db.sh manual
+
+### Cron
+
+- Пакет: cronie (pkg install cronie)
+- crontab:
+    HOME=/data/data/com.termux/files/home
+    PATH=/data/.../usr/bin:/data/.../usr/bin/applets
+    0 2 * * * .../scripts/backup-db.sh scheduled >> .../backups/cron.log 2>&1
+- HOME и PATH обязательны, иначе crond не найдёт pg_dump/gzip/date
+
+### Автозапуск
+
+- crond стартует из ~/.termux/boot/05-fireprom-v14.sh
+- Проверка: pgrep crond → PID
+
+### Тест
+
+- Тестовая задача «* * * * *» сработала: 14:06, 14:07
+- После теста crontab очищен, cron-test.log удалён
+- Ежедневный бэкап в 02:00 MSK
+
+### Файлы
+
+- app_db-YYYYMMDD-HHMMSS.sql.gz (~19-20 KB)
+- app_db-scheduled-*.sql.gz — ежедневные
+- app_db-manual-*.sql.gz — ручные
+- app_db-*.sql.gz старше 30 дней удаляются автоматически
