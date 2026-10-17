@@ -72,11 +72,11 @@ export async function POST(req: Request) {
         .values({
           number,
           clientId: body.clientId ? Number(body.clientId) : null,
-          discountPct,
-          vatPct,
+          discountPct: discountPct.toFixed(2),
+          vatPct: vatPct.toFixed(2),
           comment: body.comment ? String(body.comment) : null,
-          subtotal: totals.afterDiscount,
-          total: totals.totalClient,
+          subtotal: totals.afterDiscount.toFixed(2),
+          total: totals.totalClient.toFixed(2),
         })
         .returning();
 
@@ -94,8 +94,8 @@ export async function POST(req: Request) {
           cutLen: i.effCutLen,
           pierces: i.effPierces,
           paint: i.paint,
-          unitPrice: i.unitPrice,
-          totalPrice: i.totalPrice,
+          unitPrice: i.unitPrice.toFixed(2),
+          totalPrice: i.totalPrice.toFixed(2),
           breakdown: {
             mass: i.mass,
             materialCost: i.materialCost,

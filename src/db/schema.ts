@@ -4,6 +4,7 @@ import {
   text,
   integer,
   real,
+  numeric,
   boolean,
   jsonb,
   timestamp,
@@ -48,11 +49,11 @@ export const quotes = pgTable("quotes", {
   clientId: integer("client_id").references(() => clients.id, {
     onDelete: "set null",
   }),
-  discountPct: real("discount_pct").notNull().default(0),
-  vatPct: real("vat_pct").notNull().default(0),
+  discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull().default("0.00"),
+  vatPct: numeric("vat_pct", { precision: 5, scale: 2 }).notNull().default("0.00"),
   comment: text("comment"),
-  subtotal: real("subtotal").notNull().default(0),
-  total: real("total").notNull().default(0),
+  subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  total: numeric("total", { precision: 12, scale: 2 }).notNull().default("0.00"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -75,8 +76,8 @@ export const quoteItems = pgTable("quote_items", {
   cutLen: real("cut_len").notNull().default(0),
   pierces: integer("pierces").notNull().default(0),
   paint: boolean("paint").notNull().default(false),
-  unitPrice: real("unit_price").notNull().default(0),
-  totalPrice: real("total_price").notNull().default(0),
+  unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull().default("0.00"),
   /** { mass, materialCost, cutCost, bendCost, paintCost } */
   breakdown: jsonb("breakdown"),
 });

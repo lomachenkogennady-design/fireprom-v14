@@ -84,7 +84,7 @@ async function loadData(): Promise<{ stats: Stats; feed: FeedItem[] }> {
         kind: "quote" as const,
         id: x.id,
         title: x.number,
-        subtitle: [x.clientName ?? "без клиента", rub(x.total)].join(" · "),
+        subtitle: [x.clientName ?? "без клиента", rub(Number(x.total))].join(" · "),
         href: `/kp?load=${x.id}`,
         createdAt: x.createdAt,
       })),

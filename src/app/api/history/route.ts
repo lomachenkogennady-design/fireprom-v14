@@ -69,7 +69,7 @@ export async function GET() {
         title: q.number,
         subtitle: [
           q.clientName ?? "без клиента",
-          `${Math.round(q.total).toLocaleString("ru-RU")} ₽`,
+          `${Math.round(Number(q.total)).toLocaleString("ru-RU")} ₽`,
         ].join(" · "),
         href: `/kp?load=${q.id}`,
         createdAt: q.createdAt.toISOString(),

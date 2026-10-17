@@ -60,14 +60,14 @@ export async function loadKpData(id: number): Promise<KpData | null> {
     name: it.name,
     qty: it.qty,
     unit: guessUnit(it.name),
-    price: it.unitPrice,
+    price: Number(it.unitPrice),
   }));
 
   // Контроль: рендер должен сойтись с сохранённым total.
   // Порог 1 руб — в quote-builder округление до целого.
   const grossSum = kpItems.reduce((s, i) => s + i.qty * i.price, 0);
-  const discountPct = quote.discountPct ?? 0;
-  const vatRate = quote.vatPct || 22;
+  const discountPct = Number(quote.discountPct ?? 0);
+  const vatRate = Number(quote.vatPct) || 22;
   const computed =
     ((grossSum * (100 - discountPct)) / 100) * (1 + vatRate / 100);
   if (quote.total != null && Math.abs(computed - Number(quote.total)) > 1) {
