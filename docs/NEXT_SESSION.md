@@ -93,3 +93,14 @@ PR-8: конфигуратор /doors/new
 curl POST /api/doors/orders/1/to-quote → 200
 psql: SELECT quote_id, quote_item_id FROM door_orders WHERE id=1 → не NULL
 открыть /kp?load=N — видна позиция «Дверь 900×2000» с ценой 29490
+
+## C3+ — Интеграция door_order ↔ quote_items — ЗАКРЫТО (2026-10-17)
+- createQuoteFromExistingOrder: сервис, endpoint POST /to-quote, кнопка в UI
+- Идемпотентность: created:true (201) / created:false (200)
+- UI: кнопка скрывается, если quote_id уже есть
+
+## Backlog (новое)
+- [HIGH] quoteNumber: заменить count+1 на sequence или FOR UPDATE (race в createQuoteWithDoor и createQuoteFromExistingOrder)
+- [LOW] createQuoteFromExistingOrder: добавить FOR UPDATE на door_orders (защита от двойного клика)
+- [MED] B2-lite: идемпотентность POST /api/admin/doors/[type] (5 create-функций)
+- [LOW] clientId: null в созданном КП — связать с customer/lead
