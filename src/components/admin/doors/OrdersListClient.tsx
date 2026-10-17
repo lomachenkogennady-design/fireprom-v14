@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CreateQuoteButton from "./CreateQuoteButton";
 
 interface OrderSummary {
   id: number;
@@ -162,6 +163,7 @@ export function OrdersListClient() {
                 </div>
               </div>
             </button>
+            {!o.quoteId && <CreateQuoteButton orderId={o.id} />}
 
             {expandedId === o.id && (
               <div className="mt-4 pt-4 border-t border-neutral-200">
