@@ -124,6 +124,9 @@ export interface QuoteItemInput {
   paint: boolean;
   /** зачёт делового остатка по цене лома */
   scrap: boolean;
+  /** Для позиций-дверей: готовая цена из БД */
+  unitPrice?: number;
+  totalPrice?: number;
 }
 
 export interface QuoteItemCalc extends QuoteItemInput {
@@ -154,8 +157,8 @@ export function calcItem(input: QuoteItemInput): QuoteItemCalc {
       effCutLen: 0, effPierces: 0, ratePerM: 0,
       materialCost: 0, cutCost: 0, bendCost: 0, paintCost: 0,
       qtyFactor: 1, scrapCredit: 0,
-      unitPrice: (input as any).unitPrice ?? 0,
-      totalPrice: (input as any).totalPrice ?? 0,
+      unitPrice: input.unitPrice ?? 0,
+      totalPrice: input.totalPrice ?? 0,
       techError: null,
     };
   }

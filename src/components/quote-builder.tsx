@@ -145,6 +145,8 @@ export function QuoteBuilder() {
                 pierces: r.pierces ? Number(r.pierces) : null,
                 paint: Boolean(r.paint),
                 scrap: Boolean((r.breakdown as Record<string, unknown> | null)?.scrap),
+                unitPrice: r.unitPrice ? Number(r.unitPrice) : undefined,
+                totalPrice: r.totalPrice ? Number(r.totalPrice) : undefined,
               }))
             );
           }
@@ -189,7 +191,7 @@ export function QuoteBuilder() {
   const nestGroups = useMemo<NestGroupInput[]>(() => {
     const map = new Map<string, NestGroupInput>();
     for (const i of computed) {
-      if (i.material === "door") continue;
+      if ((i.material as string) === "door") continue;
       const key = `${i.material}|${i.thickness}|${i.tech}`;
       const entry = map.get(key) ?? {
         material: i.material,
